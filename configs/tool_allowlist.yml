@@ -1,0 +1,25 @@
+# Curated MCP tools for MVP demos (inventory + read-only scenarios).
+# Upstream: https://github.com/pipefy/ai-toolkit @ v0.2.0-beta.2
+# Canonical set: packages/mcp/src/pipefy_mcp/tools/registry.py (PIPEFY_TOOL_NAMES)
+# Verified: uv run nat mcp client tool list --transport stdio --command pipefy-mcp-server
+#
+# Consumed by configs/pipefy_nat_workflow.yml → function_groups.pipefy.include
+
+pipefy_toolkit_ref: v0.2.0-beta.2
+
+tools:
+  # Organization + pipe discovery (inventory)
+  - search_pipes
+  - get_pipe
+  - get_organization
+  # Cards (inventory counts, stale_cards, summary)
+  - find_cards
+  - get_cards
+  - get_card
+  # Pipe/card context for phase names, labels, assignees
+  - get_labels
+  - get_phase_fields
+  - get_field_conditions
+  - get_start_form_fields
+  - get_pipe_members
+  - get_pipe_relations

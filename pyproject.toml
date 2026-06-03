@@ -1,0 +1,32 @@
+[project]
+name = "pipefy-agent-bridge"
+version = "0.1.0"
+description = "Reference bridge: Pipefy MCP tools with Cursor SDK and NVIDIA NeMo Agent Toolkit harnesses"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+dev = ["ruff>=0.9", "pytest>=8.0", "pytest-cov>=6.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m \"not integration\""
+markers = [
+    "integration: live Pipefy CLI / ground-truth capture (skipped in default CI)",
+]
+
+[tool.coverage.run]
+source = ["eval", "scripts"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true

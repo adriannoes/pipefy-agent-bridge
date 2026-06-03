@@ -1,0 +1,39 @@
+# Environment and secrets
+.env
+.env.local
+*.pem
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# NeMo Agent Toolkit / NAT runtime
+.nat/
+*.log
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Maintainer-only context (copy from private/CONTEXT.md.example)
+private/CONTEXT.md
+
+# Optional local recordings
+recordings/
+*.cast
+
+# Live eval snapshots (may contain org-specific IDs)
+eval/fixtures/live/
+
+# Saved agent run transcripts (may contain card data)
+eval/transcripts/

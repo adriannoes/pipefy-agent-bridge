@@ -1,0 +1,1 @@
+List all pipes I have access to in the organization and the number of open cards in each.

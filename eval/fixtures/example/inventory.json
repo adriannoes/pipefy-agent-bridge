@@ -1,0 +1,31 @@
+{
+  "organizations": [
+    {
+      "id": "900000001",
+      "name": "Acme Demo Org",
+      "pipes": [
+        {
+          "id": "900000101",
+          "name": "Onboarding Requests",
+          "description": null
+        },
+        {
+          "id": "900000102",
+          "name": "IT Helpdesk",
+          "description": null
+        },
+        {
+          "id": "900000103",
+          "name": "Procurement",
+          "description": null
+        }
+      ],
+      "pipesCount": 3
+    }
+  ],
+  "search_limits": {
+    "max_pipes_per_org": 500,
+    "graphql_name_search": false,
+    "pipes_truncated": false
+  }
+}

@@ -1,0 +1,52 @@
+# Pipefy inventory + read-only demos via NVIDIA NeMo Agent Toolkit.
+# Tool names: configs/tool_allowlist.yml @ pipefy/ai-toolkit v0.2.0-beta.2
+# Run (with .env loaded): nat run --config_file configs/pipefy_nat_workflow.yml --input "$(cat demos/prompts/inventory.txt)"
+
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-8b-instruct
+    api_key: "${NVIDIA_API_KEY}"
+
+function_groups:
+  pipefy:
+    _type: mcp_client
+    server:
+      transport: stdio
+      command: pipefy-mcp-server
+      env:
+        PIPEFY_SERVICE_ACCOUNT_CLIENT_ID: "${PIPEFY_SERVICE_ACCOUNT_CLIENT_ID}"
+        PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET: "${PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET}"
+        DEMO_ORG_ID: "${DEMO_ORG_ID}"
+        DEMO_PIPE_ID: "${DEMO_PIPE_ID:-}"
+    # Inventory-only: search + per-pipe card counts (no get_pipe — reduces 8b mis-routing).
+    include:
+      - search_pipes
+      - get_cards
+
+workflow:
+  _type: react_agent
+  tool_names:
+    - pipefy
+  llm_name: nim_llm
+  # Maps to max_tool_calls; recursion_limit = (max_tool_calls + 1) * 2 in NAT react_agent.
+  # inventory needs ~6 calls (1 search + N get_cards); 22 → recursion_limit 46.
+  max_iterations: 22
+  verbose: true
+  use_native_tool_calling: true
+  tool_call_max_retries: 2
+  retry_agent_response_parsing_errors: true
+  parse_agent_response_max_retries: 3
+  raise_on_parsing_failure: false
+  additional_instructions: |
+    Inventory task (read-only). You have only search_pipes and get_cards. Hard cap: 7 tool calls total, then Final Answer.
+
+    Step A — search_pipes once with organization_id equal to the integer DEMO_ORG_ID and max_pipes_per_org=500.
+    Do not pass pipe_name or any other filter. If the response pipes array is non-empty, you must list those pipes in the Final Answer.
+
+    Step B — for every pipe id in that pipes array, call get_cards exactly once with that pipe_id and first=50.
+    Open card count = length of the cards list in the response. Do not invent ids. Do not call search_pipes again.
+
+    Step C — Final Answer only after Step B for all pipes. Format: one line per pipe as "Pipe Name → N open cards".
+    If pipes_truncated is true, add one sentence like "5 pipes shown of 274 total in the org".
+    Never say "no pipes" when search_pipes returned any pipe.

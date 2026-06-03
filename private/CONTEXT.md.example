@@ -1,0 +1,23 @@
+# Local context (copy to CONTEXT.md)
+
+Copy this file to `private/CONTEXT.md` (gitignored) and fill in notes for yourself only.
+Do not commit `CONTEXT.md`.
+
+```bash
+cp private/CONTEXT.md.example private/CONTEXT.md
+```
+
+## Maintainer notes (private)
+
+Use this section for goals, timeline, or audience context that should **not** appear in public README or docs.
+
+### Example
+
+- Primary goal: ...
+- Secondary audience: ...
+- Constraints: ...
+
+### Links
+
+- Related repos:
+- API keys / accounts (names only, never secrets):
