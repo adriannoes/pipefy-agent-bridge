@@ -1,0 +1,21 @@
+# Golden evaluation set (PRD-2 FR-1).
+# Each entry references a committed CLI baseline and expected facts scored via eval/compare.py (D12).
+#
+# Optional scenarios (enable when fixtures exist under eval/fixtures/example/):
+# - scenario: stale_cards
+#   baseline: eval/fixtures/example/stale_cards.json
+#   expect:
+#     min_stale_cards: 1
+# - scenario: summary
+#   baseline: eval/fixtures/example/summary.json
+#   expect:
+#     min_pipes: 1
+
+- scenario: inventory
+  baseline: eval/fixtures/example/inventory.json
+  expect:
+    min_pipes: 3
+    pipe_name_substrings:
+      - Onboarding Requests
+      - IT Helpdesk
+      - Procurement

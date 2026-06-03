@@ -46,11 +46,11 @@ Analytics → 0
 
 
 def test_extract_unescapes_newlines_in_workflow_result() -> None:
-    raw = '''
+    raw = """
 Workflow Result:
 "Reimbursement → 6 open cards\\nAnalytics → 0 open cards\\nVacation Requests → 3 open cards"
 --------------------------------------------------
-'''
+"""
     result = extract_nat_answer_text(raw)
     assert result.count("→") >= 3
 

@@ -1,0 +1,66 @@
+# Pipefy inventory workflow + NAT profiler (opt-in; does not affect make demo-nat).
+#
+# Profiler knob (NeMo Agent Toolkit):
+#   eval.general.profiler — see https://docs.nvidia.com/nemo/agent-toolkit/latest/workflows/profiler.html
+# Run via: make profile-nat  (nat eval + nvidia-nat-profiler; writes eval/profiles/<timestamp>.json)
+#
+# Default tour uses configs/pipefy_nat_workflow.yml with `nat run` (no eval / no profiler).
+
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-8b-instruct
+    api_key: "${NVIDIA_API_KEY}"
+
+function_groups:
+  pipefy:
+    _type: mcp_client
+    server:
+      transport: stdio
+      command: pipefy-mcp-server
+      env:
+        PIPEFY_SERVICE_ACCOUNT_CLIENT_ID: "${PIPEFY_SERVICE_ACCOUNT_CLIENT_ID}"
+        PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET: "${PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET}"
+        DEMO_ORG_ID: "${DEMO_ORG_ID}"
+        DEMO_PIPE_ID: "${DEMO_PIPE_ID:-}"
+    include:
+      - search_pipes
+      - get_cards
+
+workflow:
+  _type: react_agent
+  tool_names:
+    - pipefy
+  llm_name: nim_llm
+  max_iterations: 22
+  verbose: true
+  use_native_tool_calling: true
+  tool_call_max_retries: 2
+  retry_agent_response_parsing_errors: true
+  parse_agent_response_max_retries: 3
+  raise_on_parsing_failure: false
+  additional_instructions: |
+    Inventory task (read-only). Tools: search_pipes and get_cards only. Hard cap: 7 tool calls, then Final Answer.
+
+    Step A — search_pipes exactly once. Required arguments: organization_id (integer DEMO_ORG_ID), max_pipes_per_org 500.
+    Forbidden: pipe_name, filters, or calling search_pipes twice. Empty pipes array only if search truly returned none.
+
+    Step B — for each object in the pipes array, call get_cards with pipe_id set to that object's id digits only and first=50.
+    Example shape: pipe_id 306995611, first 50. Open card count = len(cards). No prose in pipe_id. Never skip a pipe.
+
+    Step C — Final Answer only after get_cards for every pipe in Step A. One line each: "Pipe Name → N open cards".
+    You must name all pipes from Step A; stopping after one pipe is wrong. If pipes_truncated, add "N pipes shown of M total".
+    Never say "no pipes" when the pipes array was non-empty.
+
+eval:
+  general:
+    max_concurrency: 1
+    # Overridden per run by eval/profile_nat.sh (under eval/profiles/.runs/<timestamp>/).
+    output_dir: eval/profiles/.runs/placeholder
+    dataset:
+      _type: json
+      file_path: eval/datasets/inventory_profile.json
+    profiler:
+      compute_llm_metrics: true
+      csv_exclude_io_text: true
+  # Profile-only: no Ragas/accuracy evaluators (NAT eval without evaluators is supported).

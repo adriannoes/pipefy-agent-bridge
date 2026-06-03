@@ -21,7 +21,7 @@ PYTHON_DOTENV_VERSION ?= 1.2.2
 # NVIDIA NAT harness (verified in task 4.3; react_agent requires langchain extra)
 NVIDIA_NAT_VERSION ?= 1.7.0
 
-.PHONY: help doctor install-pipefy-tools install-cursor-demo install-nat-demo demo-cursor demo-nat tour
+.PHONY: help doctor install-pipefy-tools install-cursor-demo install-nat-demo ensure-nat-profiler demo-cursor demo-nat profile-nat tour eval
 
 define NOT_IMPL
 	@echo "not implemented yet (task $(1))"
@@ -47,7 +47,9 @@ help:
 	@echo "  install-nat-demo      — install nvidia-nat[mcp,langchain] (react_agent)"
 	@echo "  demo-cursor           — Cursor SDK harness (SCENARIO=$(SCENARIO))"
 	@echo "  demo-nat              — NVIDIA NAT harness (SCENARIO=$(SCENARIO))"
+	@echo "  profile-nat           — NAT eval + profiler → eval/profiles/ (operator-only)"
 	@echo "  tour                  — full operator tour + fact check (inventory)"
+	@echo "  eval                  — reliability runner (EVAL_ARGS=--help for flags)"
 
 doctor:
 	@test -f .env \
@@ -93,6 +95,11 @@ install-nat-demo:
 		|| { echo "error: react_agent function not registered — check nvidia-nat[langchain] install"; exit 1; }
 	@echo "Installed: nvidia-nat $(NVIDIA_NAT_VERSION) with langchain + mcp extras (react_agent ready)"
 
+ensure-nat-profiler:
+	@uv run python -c "import importlib.metadata as m; m.version('nvidia-nat-profiler')" >/dev/null 2>&1 \
+		|| uv pip install "nvidia-nat-profiler==$(NVIDIA_NAT_VERSION)"
+	@echo "Profiler extra ready (nvidia-nat-profiler $(NVIDIA_NAT_VERSION))"
+
 ensure-nat-demo:
 	@uv run nat --help >/dev/null 2>&1 || $(MAKE) install-nat-demo
 
@@ -111,7 +118,20 @@ demo-nat: ensure-nat-demo
 	@set -a && . ./.env && set +a \
 		&& ./demos/02_nat_smoke.sh $(SCENARIO)
 
+profile-nat: ensure-nat-demo ensure-nat-profiler
+	@test -f .env \
+		|| { echo "error: .env missing — run: cp .env.example .env"; exit 1; }
+	@set -a && . ./.env && set +a \
+		&& ./eval/profile_nat.sh $(SCENARIO)
+
 tour: ensure-nat-demo ensure-cursor-demo
 	@test -f .env \
 		|| { echo "error: .env missing — run: cp .env.example .env"; exit 1; }
 	@set -a && . ./.env && set +a && ./scripts/tour.sh
+
+# EVAL_ARGS: pass-through flags for eval/run_eval.py (e.g. --runs 5 --harness nat --model meta/llama-3.1-70b-instruct)
+eval:
+	@test -f .env \
+		|| { echo "error: .env missing — run: cp .env.example .env"; exit 1; }
+	@set -a && . ./.env && set +a \
+		&& uv run python eval/run_eval.py $(EVAL_ARGS)

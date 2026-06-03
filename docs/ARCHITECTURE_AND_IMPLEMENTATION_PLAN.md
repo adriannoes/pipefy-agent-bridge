@@ -56,7 +56,7 @@ The name **bridge** is intentional: one stable tool surface (MCP), multiple agen
 |----|------|----------------|
 | G1 | **Working end-to-end walkthrough** | Anyone can clone the repo, set env vars, run scripts, and see real Pipefy data accessed via agents. |
 | G2 | **Demonstrate Cursor SDK mastery** | Show `Agent.create`, MCP `stdio` configuration, `send` / `wait`, error handling (`CursorAgentError` vs `result.status`), and explicit `local` runtime selection. |
-| G3 | **Demonstrate NVIDIA NAT mastery** | Show YAML workflow, `mcp_client` function group with `stdio` transport, NIM LLM, `nat run`, and (Phase 5) profiler/eval. |
+| G3 | **Demonstrate NVIDIA NAT mastery** | Show YAML workflow, `mcp_client` function group with `stdio` transport, NIM LLM, `nat run`, profiler (`make profile-nat`), and eval runner (`make eval`; Phase 5). |
 | G4 | **Demonstrate Pipefy domain fluency** | Scenarios reflect real ops work: pipe inventory, phase backlog, stale cards, safe card transitions—not toy “hello world” APIs. |
 | G5 | **Reproducibility** | Pipefy CLI `--json` outputs provide deterministic ground truth comparable to agent answers. |
 | G6 | **Public reference repo** | Clear README, documentation index, `.env.example`, and a **hands-on tour** runnable locally in ~20–30 minutes. |
@@ -305,7 +305,7 @@ pipefy-mcp-server registers **149 tools across ten domains** (confirm on the pin
 | LLM | `_type: nim` with `model_name` and `NVIDIA_API_KEY` |
 | Workflow | `_type: react_agent` with `tool_names: [pipefy]` and `llm_name` pointing at the `nim` LLM |
 | CLI | `nat run --config_file configs/pipefy_nat_workflow.yml --input "..."` |
-| Phase 5 | Profiler + evaluation configs |
+| Phase 5 | Shipped: `make profile-nat`, `make eval`, `eval/golden.yaml`, [`docs/BENCHMARKS.md`](BENCHMARKS.md) (dated 2026-06-03 measured run) |
 
 ---
 
@@ -433,7 +433,7 @@ Repeat in README: community demo; not official Pipefy endorsement. Align with pi
 
 | NVIDIA technology | Usage |
 |-------------------|--------|
-| **NeMo Agent Toolkit** | Orchestration, MCP client, `nat run`, future profiler/eval |
+| **NeMo Agent Toolkit** | Orchestration, MCP client, `nat run`, profiler (`make profile-nat`), eval runner (`make eval`) |
 | **NIM** | LLM via `_type: nim` and `NVIDIA_API_KEY` |
 | **MCP integration** | `nvidia-nat[mcp]` package |
 
@@ -593,13 +593,16 @@ Tasks:
 
 ### Phase 5 — NVIDIA profiler & eval (stretch)
 
+**Status:** Done — runner + profiler + [`docs/BENCHMARKS.md`](BENCHMARKS.md) with dated measured run (2026-06-03).
+
 Tasks:
 
-1. Enable NAT profiler for `nat run` invocation; capture timing JSON.
-2. Add 3 golden questions in `eval/golden.yaml`.
-3. Document results in `docs/BENCHMARKS.md`.
+1. [x] Enable NAT profiler for `nat run` invocation; capture timing JSON (`configs/pipefy_nat_workflow_profile.yml`, `make profile-nat` → gitignored `eval/profiles/`; committed sample `eval/fixtures/example/profile.json`).
+2. [x] Golden evaluation set in `eval/golden.yaml` + `eval/golden_loader.py` (`inventory` required; `stale_cards`/`summary` optional — deferred until example fixtures exist).
+3. [x] Reliability runner: `eval/run_eval.py` + `make eval` (first-attempt vs with-retries pass rate, median/p90 latency, `8b`/`70b` model override via `--model`).
+4. [x] Document results in [`docs/BENCHMARKS.md`](BENCHMARKS.md) (template + reproduce commands); [x] paste dated measured run (operator, 2026-06-03).
 
-**Exit criteria:** Profiler timing JSON captured for one scenario; `eval/golden.yaml` runs against CLI fixtures; `docs/BENCHMARKS.md` records the run.
+**Exit criteria:** [x] Profiler timing JSON captured for one scenario; [x] `eval/golden.yaml` runs against CLI fixtures via `make eval`; [x] [`docs/BENCHMARKS.md`](BENCHMARKS.md) records a dated run.
 
 ### Phase 6 — Cursor Cloud agent (stretch)
 
@@ -822,6 +825,13 @@ Agents are **non-deterministic**; evaluation should target **verifiable facts** 
 
 ### 17.3 NAT-native eval (Phase 5)
 
+Shipped artifacts (PRD-2):
+
+1. **Golden set** — `eval/golden.yaml` + `eval/golden_loader.py`; `inventory` scenario required (`stale_cards`/`summary` optional when fixtures land).
+2. **Runner** — `eval/run_eval.py` + `make eval`; scores via `eval/compare.py` and `scripts/extract_nat_answer.py`; reports first-attempt vs with-retries pass rate and median/p90 latency per harness (`cursor`|`nat`|`both`).
+3. **Profiler** — `configs/pipefy_nat_workflow_profile.yml`, `make profile-nat` → gitignored `eval/profiles/`; sample shape in `eval/fixtures/example/profile.json`.
+4. **Benchmarks report** — [`docs/BENCHMARKS.md`](BENCHMARKS.md) (reproduce commands + dated measured table, 2026-06-03).
+
 Use NeMo Agent Toolkit **evaluation system** (per NAT docs) with golden Q&A pairs referencing CLI fixtures.
 
 **Justification:** Demonstrates NVIDIA toolkit beyond `nat run`—important for “production agent ops” narrative.
@@ -897,7 +907,7 @@ Copy each block into GitHub Issues / Linear / Jira as needed.
 - [ ] N-2: `make demo-nat` target
 - [ ] N-3: Scenario A parity with Cursor demo
 - [ ] N-4: Document NIM model selection and API key
-- [ ] N-5: Profiler artifact (stretch)
+- [x] N-5: Profiler artifact (stretch) — `make profile-nat`, `eval/fixtures/example/profile.json`
 
 ### Epic: Operator experience (reproducible tour)
 
@@ -911,6 +921,8 @@ Copy each block into GitHub Issues / Linear / Jira as needed.
 - [ ] E-1: `eval/ground_truth.sh`
 - [ ] E-2: `eval/compare.py` for Scenario A (wired into `make tour`)
 - [ ] E-3: *(Optional, low priority)* Recording notes inside TRY_IT_YOURSELF; no separate `DEMO_RECORDING.md` (D14)
+- [x] E-4: `eval/golden.yaml` + `eval/golden_loader.py` + `eval/run_eval.py` + `make eval` (Phase 5)
+- [x] E-5: `docs/BENCHMARKS.md` (template + dated measured reliability table, 2026-06-03)
 
 ### Epic: Optional GPU semantics
 

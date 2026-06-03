@@ -35,5 +35,8 @@ recordings/
 # Live eval snapshots (may contain org-specific IDs)
 eval/fixtures/live/
 
+# NAT profiler runs (operator-only; may contain org-specific IDs)
+eval/profiles/
+
 # Saved agent run transcripts (may contain card data)
 eval/transcripts/

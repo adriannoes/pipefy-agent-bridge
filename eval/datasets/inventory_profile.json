@@ -1,0 +1,7 @@
+[
+  {
+    "id": "inventory-1",
+    "question": "List all pipes I have access to in the organization and the number of open cards in each.\n\nUse search_pipes for the org, then get_cards once per pipe id returned. Include every pipe in the answer.",
+    "answer": ""
+  }
+]

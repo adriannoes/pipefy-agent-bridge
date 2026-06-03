@@ -21,7 +21,7 @@ The initiative is split into **one MVP PRD + three stretch PRDs**, mapped 1:1 to
 | PRD | File | Status | Phase(s) | Scope summary |
 |-----|------|--------|----------|---------------|
 | **PRD-1 — Reproducible MVP Tour** | [prd-pipefy-agent-bridge-mvp.md](prd-pipefy-agent-bridge-mvp.md) | **Done** (2026-06-02) | 0–4 (shipped) | `doctor` → `demo-cursor` → `demo-nat` → `tour` for `inventory`, `eval/compare.py` fact check, lint-only CI, TRY_IT_YOURSELF Steps 0–4 |
-| **PRD-2 — NAT Profiler & Evaluation** | [prd-2-nat-profiler-and-evaluation.md](prd-2-nat-profiler-and-evaluation.md) | Draft for sign-off | 5 | NAT profiler, `eval/golden.yaml`, reliability metric (first-attempt pass rate), `docs/BENCHMARKS.md` |
+| **PRD-2 — NAT Profiler & Evaluation** | [prd-2-nat-profiler-and-evaluation.md](prd-2-nat-profiler-and-evaluation.md) | **Done** (2026-06-03) | 5 | NAT profiler, `eval/golden.yaml`, `make eval` reliability runner, dated [`docs/BENCHMARKS.md`](../../docs/BENCHMARKS.md) |
 | **PRD-3 — Cursor Cloud Agent** | _not written_ | Backlog | 6 | `CloudAgentOptions` + `repos` + MCP stdio in a Cursor-hosted VM |
 | **PRD-4 — GPU Semantic Search** | _not written_ | Backlog | 7 | NIM embeddings + FAISS/cuVS "find similar cards", with CPU fallback |
 
@@ -40,6 +40,17 @@ The initiative is split into **one MVP PRD + three stretch PRDs**, mapped 1:1 to
 | Git baseline | Initial commit | **Done** — initial local commit created (no remote push until complete & tested) |
 
 Execution trace: [engineering/tasks/tasks-prd-pipefy-agent-bridge-mvp.md](../../engineering/tasks/tasks-prd-pipefy-agent-bridge-mvp.md) (tasks 1.0–5.0 complete).
+
+### PRD-2 in progress — scope deltas (vs draft)
+
+| Area | Planned | As built (so far) |
+|------|---------|-------------------|
+| Golden set | Multiple scenarios | **`inventory` only** in `eval/golden.yaml`; `stale_cards`/`summary` commented optional until example fixtures exist |
+| Profiler | Enable on default `nat run` | **Opt-in** via `configs/pipefy_nat_workflow_profile.yml` + `make profile-nat`; default `make demo-nat` unchanged |
+| Reliability runner | `make eval` | **Shipped** — first-attempt vs with-retries pass rate, median/p90 latency, `8b`/`70b` via `--model` |
+| Benchmarks report | `docs/BENCHMARKS.md` | **Template shipped** (task 4.0); dated measured run + D18/D19 (task 5.3) pending operator |
+
+Execution trace: [engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md](../../engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md) (tasks 1.0–3.0 complete; 4.0–5.4 open).
 
 ## Sequencing & dependencies
 

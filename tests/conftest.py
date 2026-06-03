@@ -29,8 +29,7 @@ def _skip_integration_without_pipefy_runtime(request: pytest.FixtureRequest) -> 
         return
     if not _pipefy_credentials_configured():
         pytest.skip(
-            "Pipefy service account credentials not set "
-            f"({', '.join(_PIPEFY_CREDENTIAL_ENV_VARS)})"
+            f"Pipefy service account credentials not set ({', '.join(_PIPEFY_CREDENTIAL_ENV_VARS)})"
         )
     if not _pipefy_cli_available():
         pytest.skip("pipefy CLI not on PATH — run: make install-pipefy-tools")

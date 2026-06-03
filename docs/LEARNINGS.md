@@ -61,6 +61,8 @@ Living notes from implementing the MVP harnesses. Use this when debugging `make 
 
 **70b probe (2025-06-02):** `NIM_MODEL=meta/llama-3.1-70b-instruct` can authenticate but still return incomplete inventory; keep **8b** as default until tier + quality are validated.
 
+**PRD-2 golden eval (2026-06-03):** `make eval` on `inventory` (NAT 8b, N=3) recorded **0%** first-attempt and **0%** with-retries pass rate vs `eval/compare.py` (median **19.86 s**). See [BENCHMARKS.md](BENCHMARKS.md) and OPEN_DECISIONS D18/D19. **`70b`** was not re-run in that close-out; operator may compare with `--model meta/llama-3.1-70b-instruct`.
+
 **Why 8b is still the default (D9):** Sufficient for the thin `inventory` slice when guided; keeps NIM cost/low tier barrier low. **`70b`** is documented as an upgrade path when the maintainer’s key tier allows it (see OPEN_DECISIONS D18).
 
 ### Workflow / prompt constraints
@@ -146,4 +148,4 @@ After Acts 1–3, the tour runs **Encore**: `eval/compare.py` checks that each h
 
 **Tour status (docs aligned 2025-06-02):** README, TRY_IT_YOURSELF Step 4, and ARCHITECTURE §16.5 describe `scripts/tour.sh` retries (Cursor ×1, NAT ×3 with compare gate) and Encore truncation rules.
 
-*Last updated: 2025-06-02 — inventory tour / compare / NAT tuning session.*
+*Last updated: 2026-06-03 — PRD-2 golden eval benchmark ([BENCHMARKS.md](BENCHMARKS.md)).*
