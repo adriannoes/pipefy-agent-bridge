@@ -61,7 +61,7 @@ Living notes from implementing the MVP harnesses. Use this when debugging `make 
 
 **70b probe (2025-06-02):** `NIM_MODEL=meta/llama-3.1-70b-instruct` can authenticate but still return incomplete inventory; keep **8b** as default until tier + quality are validated.
 
-**PRD-2 golden eval (2026-06-03):** `make eval` on `inventory` (NAT 8b, N=3) recorded **0%** first-attempt and **0%** with-retries pass rate vs `eval/compare.py` (median **19.86 s**). See [BENCHMARKS.md](BENCHMARKS.md) and OPEN_DECISIONS D18/D19. **`70b`** was not re-run in that close-out; operator may compare with `--model meta/llama-3.1-70b-instruct`.
+**PRD-2 golden eval:** `run_eval` now refreshes `eval/fixtures/live/` via `ground_truth.sh` before scoring (same path as tour). The **2026-06-03** table in [BENCHMARKS.md](BENCHMARKS.md) used the **example** fixture by mistake — re-run `make eval` for valid D18/D19 numbers.
 
 **Why 8b is still the default (D9):** Sufficient for the thin `inventory` slice when guided; keeps NIM cost/low tier barrier low. **`70b`** is documented as an upgrade path when the maintainer’s key tier allows it (see OPEN_DECISIONS D18).
 
@@ -108,6 +108,8 @@ make demo-nat           # may need 2–3 attempts with 8b on busy orgs
 **Tour deps:** `make tour` runs `ensure-nat-demo` and `ensure-cursor-demo` (auto-install on first run), same pattern as Act 3 / Act 2.
 
 **Flakiness observed (2025-06-02, post-fix):** back-to-back `make demo-nat` on the same org can be **1/3–3/3** in one session (incomplete single-pipe answers vs full 5-pipe inventory). Treat a single failure as normal for 8b; rely on tour retries or `NIM_MODEL=meta/llama-3.1-70b-instruct` when the key tier allows.
+
+**Eval scoring fix (2026-06):** `make eval` previously scored against `eval/fixtures/example/inventory.json` while agents answered about the live org. Runner now calls `eval/ground_truth.sh` once per scenario and scores `eval/fixtures/live/*.json` (same as smoke/tour). **Post-fix re-benchmark (2026-06-03):** NAT 8b **1/3** first-attempt, **2/3** with-retries on golden `inventory` ([BENCHMARKS.md](BENCHMARKS.md)).
 
 **Reliability pass (2025-06-03):**
 

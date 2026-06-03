@@ -2,33 +2,35 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-_REQUIRED_CASE_KEYS = frozenset({"scenario", "baseline", "expect"})
+from eval.golden_errors import GoldenLoadError
+from eval.golden_expect import validate_expect_against_baseline
+
+_REQUIRED_CASE_KEYS = frozenset({"scenario", "example_baseline", "expect"})
+_BASELINE_ALIAS_KEY = "baseline"
 
 
 @dataclass(frozen=True)
 class GoldenCase:
-    """One golden scenario: CLI baseline path and expected facts for scoring."""
+    """One golden scenario: example fixture path and expected facts for validation."""
 
     scenario: str
-    baseline: Path
+    example_baseline: Path
     expect: dict[str, Any]
-
-
-class GoldenLoadError(ValueError):
-    """Raised when ``golden.yaml`` fails structural or filesystem validation."""
 
 
 def load_golden(path: Path | str) -> list[GoldenCase]:
     """Load golden cases from a YAML list file.
 
-    Each entry must include ``scenario``, ``baseline`` (repo-root-relative path
-    to a committed fixture), and ``expect`` (non-empty dict of fact keys).
+    Each entry must include ``scenario``, ``example_baseline`` (repo-root-relative
+    path to a committed fixture), and ``expect`` (non-empty dict of fact keys).
+    The legacy key ``baseline`` is accepted as an alias for ``example_baseline``.
 
     Args:
         path: Path to ``golden.yaml`` (or equivalent).
@@ -37,8 +39,8 @@ def load_golden(path: Path | str) -> list[GoldenCase]:
         Validated cases in file order.
 
     Raises:
-        GoldenLoadError: On parse errors, missing keys, empty ``expect``, or a
-            missing baseline file.
+        GoldenLoadError: On parse errors, missing keys, empty ``expect``, a
+            missing example baseline file, or ``expect`` inconsistent with the fixture.
 
     Example:
         >>> cases = load_golden("eval/golden.yaml")
@@ -50,7 +52,7 @@ def load_golden(path: Path | str) -> list[GoldenCase]:
     raw_entries = _load_yaml_list(golden_path)
     cases: list[GoldenCase] = []
     for index, entry in enumerate(raw_entries):
-        cases.append(_parse_case(entry, index=index, repo_root=repo_root))
+        cases.append(_parse_case(entry, index=index, repo_root=repo_root, golden_path=golden_path))
     return cases
 
 
@@ -83,14 +85,20 @@ def _load_yaml_list(golden_path: Path) -> list[Any]:
         msg = (
             f"golden file {golden_path!s} root must be a YAML list of scenarios, "
             f"got {type(payload).__name__!r}; expected "
-            "[{{scenario: str, baseline: str, expect: dict}}, ...]"
+            "[{{scenario: str, example_baseline: str, expect: dict}}, ...]"
         )
         raise GoldenLoadError(msg)
 
     return payload
 
 
-def _parse_case(entry: Any, *, index: int, repo_root: Path) -> GoldenCase:
+def _parse_case(
+    entry: Any,
+    *,
+    index: int,
+    repo_root: Path,
+    golden_path: Path,
+) -> GoldenCase:
     location = f"entry[{index}]"
 
     if not isinstance(entry, dict):
@@ -101,11 +109,26 @@ def _parse_case(entry: Any, *, index: int, repo_root: Path) -> GoldenCase:
         raise GoldenLoadError(msg)
 
     scenario_label = _scenario_label(entry, location=location)
-    missing = sorted(_REQUIRED_CASE_KEYS - entry.keys())
-    if missing:
+    if "scenario" not in entry:
+        missing = sorted({"scenario"} | (_REQUIRED_CASE_KEYS - set(entry.keys())))
         msg = (
             f"scenario {scenario_label!r}: missing required field(s) {missing!r}; "
-            f"expected mapping with keys {sorted(_REQUIRED_CASE_KEYS)!r}"
+            f"expected mapping with keys {sorted(_REQUIRED_CASE_KEYS)!r} "
+            f"(legacy alias {_BASELINE_ALIAS_KEY!r} accepted for example_baseline)"
+        )
+        raise GoldenLoadError(msg)
+    if "expect" not in entry:
+        msg = f"scenario {scenario_label!r}: missing required field 'expect'"
+        raise GoldenLoadError(msg)
+    baseline_field = _resolve_baseline_field(
+        entry,
+        scenario_label=scenario_label,
+        golden_path=golden_path,
+    )
+    if baseline_field not in entry:
+        msg = (
+            f"scenario {scenario_label!r}: missing 'example_baseline' "
+            f"(legacy alias {_BASELINE_ALIAS_KEY!r} accepted)"
         )
         raise GoldenLoadError(msg)
 
@@ -115,8 +138,8 @@ def _parse_case(entry: Any, *, index: int, repo_root: Path) -> GoldenCase:
         scenario_label=scenario_label,
     )
     baseline_raw = _require_non_empty_str(
-        entry["baseline"],
-        field="baseline",
+        entry[baseline_field],
+        field=baseline_field,
         scenario_label=scenario,
     )
     expect = _parse_expect(entry["expect"], scenario_label=scenario)
@@ -124,12 +147,41 @@ def _parse_case(entry: Any, *, index: int, repo_root: Path) -> GoldenCase:
     baseline_path = _resolve_baseline_path(baseline_raw, repo_root=repo_root)
     if not baseline_path.is_file():
         msg = (
-            f"scenario {scenario!r}: baseline file not found: {baseline_path!s} "
+            f"scenario {scenario!r}: example baseline file not found: {baseline_path!s} "
             f"(from {baseline_raw!r} relative to repo root {repo_root!s})"
         )
         raise GoldenLoadError(msg)
 
-    return GoldenCase(scenario=scenario, baseline=baseline_path, expect=expect)
+    validate_expect_against_baseline(expect, baseline_path)
+
+    return GoldenCase(scenario=scenario, example_baseline=baseline_path, expect=expect)
+
+
+def _resolve_baseline_field(
+    entry: dict[str, Any],
+    *,
+    scenario_label: str,
+    golden_path: Path,
+) -> str:
+    has_example = "example_baseline" in entry
+    has_legacy = _BASELINE_ALIAS_KEY in entry
+    if has_example and has_legacy:
+        msg = (
+            f"scenario {scenario_label!r}: use only 'example_baseline', not both "
+            f"'example_baseline' and legacy 'baseline' in {golden_path!s}"
+        )
+        raise GoldenLoadError(msg)
+    if has_example:
+        return "example_baseline"
+    if has_legacy:
+        warnings.warn(
+            f"scenario {scenario_label!r}: golden key 'baseline' is deprecated; "
+            "rename to 'example_baseline' (scoring uses eval/fixtures/live/ after ground_truth.sh)",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return _BASELINE_ALIAS_KEY
+    return "example_baseline"
 
 
 def _scenario_label(entry: dict[str, Any], *, location: str) -> str:

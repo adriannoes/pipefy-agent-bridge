@@ -10,9 +10,12 @@
 
 ## Relevant Files
 
-- `eval/golden.yaml` — golden Q&A per scenario (`inventory` required); `expect` uses `min_pipes` + `pipe_name_substrings` (D12).
-- `eval/golden_loader.py` — `load_golden()` + `GoldenCase`; validates keys, baseline exists, non-empty `expect`.
-- `eval/run_eval.py` — runner: N runs/scenario/harness, pass/fail via `eval/compare.py`, latency + pass-rate summary (shipped).
+- `eval/golden.yaml` — `example_baseline` + `expect` (fixture validation); scoring uses live baseline via `ground_truth.sh`.
+- `eval/golden_loader.py`, `eval/golden_expect.py` — load golden + validate `expect` against example fixture.
+- `eval/ground_truth_refresh.py` — `refresh_ground_truth()`, `scoring_baseline_path()` for live scoring.
+- `eval/eval_summary.py` — `summarize()`, episode latency percentiles, Markdown table formatters.
+- `eval/inventory_prompt.py` — shared inventory MCP hints (smoke + profiler).
+- `eval/run_eval.py` — runner: live baseline refresh, harness loop, `--skip-ground-truth` for offline debug.
 - `eval/fixtures/example/profile.json` — committed synthetic NAT profiler sample (normalized summary; live shape in `eval/profiles/*.json`).
 - `configs/pipefy_nat_workflow_profile.yml` — opt-in NAT workflow + `eval.general.profiler` (not used by `make demo-nat`).
 - `eval/profile_nat.sh` — operator entry: `nat eval` + bundle → `eval/profiles/<timestamp>.json`.
@@ -158,3 +161,28 @@
     - **What**: `uv run ruff check .` and `uv run pytest tests/ -v` green; create one atomic Conventional Commit (e.g. `feat(eval): NAT profiler + reliability eval runner`). Do **not** push.
     - **Why**: FR-5 + repo hygiene; keep CI lint-only.
     - **Verify**: `git log --oneline -1` shows the commit; `git status` clean; no push performed.
+
+## Post-ship quality fixes (thermo-nuclear review, 2026-06)
+
+**Root cause:** `run_eval` scored agent answers against `eval/fixtures/example/inventory.json` while agents answered about the live org; `golden.yaml` `expect` was loaded but never validated or used for scoring. Docs claimed `ground_truth.sh` + live baseline.
+
+**Decisions (post-fix):**
+
+- Scoring path: `ground_truth.sh` → `eval/fixtures/live/<scenario>.json` (once per `make eval`, not per attempt).
+- `golden.yaml`: `example_baseline` + `expect` validate the committed fixture only.
+- Latency: median/p90 over **episode** wall-clock (sum of attempts until pass or retries exhausted).
+- Profiler bundle: lean default (paths + summary); `EMBED_ARTIFACTS=1` or `--embed-artifacts` for full inline JSON.
+
+**Invalidated metrics:** [docs/BENCHMARKS.md](../../docs/BENCHMARKS.md) table dated **2026-06-03** (pre-fix) — do not use for D18/D19 until operator re-run.
+
+- [x] **6.0** Parent — quality fix track
+
+  - [x] **6.1** Live scoring + `ground_truth_refresh.py` + `--skip-ground-truth` — verify: `uv run pytest tests/test_ground_truth_refresh.py -v`
+  - [x] **6.2** `example_baseline` / `expect` validation (`golden_expect.py`) — verify: `tests/test_golden_loader.py`
+  - [x] **6.3** `load_baseline` in compare; `inventory_prompt.py`; smoke uses `--print-prompt` — verify: `tests/test_inventory_prompt.py`
+  - [x] **6.4** `eval_summary.py` + episode latency — verify: `tests/test_run_eval.py`
+  - [x] **6.5** Bundle lean default + `--embed-artifacts` — verify: `tests/test_bundle_nat_profile.py`
+  - [x] **6.6** Docs: BENCHMARKS, OPEN_DECISIONS, LEARNINGS note pre-fix invalidation — re-benchmark **2026-06-03** NAT 3×3 post-fix (33.3% / 66.7% / med 35.92s)
+  - [x] **6.7** This section + Relevant Files updated
+
+**Optional (out of scope):** `--parallel-harnesses`; `stale_cards`/`summary` in runner; CI gating on live eval.

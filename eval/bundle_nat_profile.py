@@ -64,8 +64,13 @@ def bundle_nat_profile(
     workflow_config: str,
     model: str,
     organization_id: str,
+    embed_artifacts: bool = False,
 ) -> dict[str, Any]:
-    """Assemble a single JSON document from NAT profiler files in *run_dir*."""
+    """Assemble a single JSON document from NAT profiler files in *run_dir*.
+
+    By default only records file paths under ``nat_profiler_artifacts.files`` plus
+    a compact ``summary``. Pass ``embed_artifacts=True`` to inline full JSON traces.
+    """
     nat_files: dict[str, str] = {}
     loaded: dict[str, Any] = {}
     for name in _ARTIFACT_NAMES:
@@ -78,6 +83,15 @@ def bundle_nat_profile(
     inference = loaded.get("inference_optimization")
     metrics = loaded.get("workflow_profiling_metrics")
     traces = loaded.get("all_requests_profiler_traces")
+
+    artifacts_block: dict[str, Any] = {
+        "run_dir": str(run_dir),
+        "files": nat_files,
+    }
+    if embed_artifacts:
+        artifacts_block["workflow_profiling_metrics"] = metrics
+        artifacts_block["inference_optimization"] = inference
+        artifacts_block["all_requests_profiler_traces"] = traces
 
     return {
         "captured_at": datetime.now(tz=UTC).isoformat(),
@@ -93,13 +107,7 @@ def bundle_nat_profile(
             workflow_metrics=metrics if isinstance(metrics, dict) else None,
             traces=traces if isinstance(traces, list) else None,
         ),
-        "nat_profiler_artifacts": {
-            "run_dir": str(run_dir),
-            "files": nat_files,
-            "workflow_profiling_metrics": metrics,
-            "inference_optimization": inference,
-            "all_requests_profiler_traces": traces,
-        },
+        "nat_profiler_artifacts": artifacts_block,
     }
 
 
@@ -114,6 +122,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--model", default="meta/llama-3.1-8b-instruct")
     parser.add_argument("--organization-id", default="")
+    parser.add_argument(
+        "--embed-artifacts",
+        action="store_true",
+        help="Inline full NAT JSON artifacts (large); default is paths + summary only",
+    )
     return parser.parse_args(argv)
 
 
@@ -128,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
         workflow_config=args.workflow_config,
         model=args.model,
         organization_id=args.organization_id,
+        embed_artifacts=args.embed_artifacts,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

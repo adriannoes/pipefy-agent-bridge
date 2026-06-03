@@ -3,22 +3,27 @@
 from __future__ import annotations
 
 import argparse
-import json
-import math
 import os
 import subprocess
 import sys
 import time
-from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if __package__ is None:
     sys.path.insert(0, str(REPO_ROOT))
 
-from eval.compare import evaluate_inventory_answer  # noqa: E402
+from eval.compare import evaluate_inventory_answer, load_baseline  # noqa: E402
+from eval.eval_summary import (  # noqa: E402
+    HarnessName,
+    RunResult,
+    format_benchmark_markdown_table,
+    format_summary_table,
+    summarize,
+    summary_to_json,
+)
 from eval.golden_loader import GoldenCase, load_golden  # noqa: E402
+from eval.ground_truth_refresh import refresh_ground_truth, scoring_baseline_path  # noqa: E402
 from scripts.extract_nat_answer import extract_nat_answer_text  # noqa: E402
 
 DEFAULT_GOLDEN = REPO_ROOT / "eval" / "golden.yaml"
@@ -27,153 +32,9 @@ DEFAULT_RUNS = 5
 DEFAULT_RETRIES = 3
 DEFAULT_TIMEOUT_S = 600.0
 
-HarnessName = Literal["cursor", "nat"]
-
-
-@dataclass(frozen=True)
-class RunResult:
-    """One harness invocation (one attempt within a run episode)."""
-
-    scenario: str
-    harness: HarnessName
-    run: int
-    attempt: int
-    passed: bool
-    latency_s: float
-
-
-@dataclass(frozen=True)
-class HarnessSummary:
-    """Aggregated metrics for one harness."""
-
-    harness: HarnessName
-    n_episodes: int
-    first_attempt_pass_rate: float
-    with_retries_pass_rate: float
-    median_latency_s: float
-    p90_latency_s: float
-
-
-@dataclass(frozen=True)
-class Summary:
-    """Full evaluation summary across harnesses."""
-
-    retries: int
-    by_harness: tuple[HarnessSummary, ...]
-
-
-def percentile(values: list[float], p: float) -> float:
-    """Linear-interpolation percentile (p in 0–100); empty list returns 0.0."""
-    if not values:
-        return 0.0
-    if len(values) == 1:
-        return values[0]
-    sorted_vals = sorted(values)
-    rank = (len(sorted_vals) - 1) * (p / 100.0)
-    lower = math.floor(rank)
-    upper = math.ceil(rank)
-    if lower == upper:
-        return sorted_vals[int(rank)]
-    weight = rank - lower
-    return sorted_vals[lower] * (1.0 - weight) + sorted_vals[upper] * weight
-
-
-def summarize(results: list[RunResult], retries: int) -> Summary:
-    """Aggregate per-harness first-attempt vs with-retries pass rates and latency percentiles.
-
-    Episodes are grouped by ``(scenario, harness, run)``. An episode passes on first attempt
-    when ``attempt == 1`` and ``passed``; it passes with retries when any attempt in
-    ``1..retries`` passed.
-    """
-    if retries < 1:
-        msg = f"retries must be >= 1, got {retries!r}"
-        raise ValueError(msg)
-
-    harnesses = _harnesses_in_results(results)
-    summaries: list[HarnessSummary] = []
-    for harness in harnesses:
-        harness_rows = [row for row in results if row.harness == harness]
-        episodes = _group_episodes(harness_rows, retries=retries)
-        n_episodes = len(episodes)
-        if n_episodes == 0:
-            summaries.append(
-                HarnessSummary(
-                    harness=harness,
-                    n_episodes=0,
-                    first_attempt_pass_rate=0.0,
-                    with_retries_pass_rate=0.0,
-                    median_latency_s=0.0,
-                    p90_latency_s=0.0,
-                )
-            )
-            continue
-
-        first_pass = sum(1 for ep in episodes if ep.first_passed)
-        with_retries_pass = sum(1 for ep in episodes if ep.with_retries_passed)
-        latencies = [row.latency_s for row in harness_rows]
-
-        summaries.append(
-            HarnessSummary(
-                harness=harness,
-                n_episodes=n_episodes,
-                first_attempt_pass_rate=first_pass / n_episodes,
-                with_retries_pass_rate=with_retries_pass / n_episodes,
-                median_latency_s=percentile(latencies, 50.0),
-                p90_latency_s=percentile(latencies, 90.0),
-            )
-        )
-
-    return Summary(retries=retries, by_harness=tuple(summaries))
-
-
-@dataclass(frozen=True)
-class _EpisodeOutcome:
-    first_passed: bool
-    with_retries_passed: bool
-
-
-def _harnesses_in_results(results: list[RunResult]) -> tuple[HarnessName, ...]:
-    order: list[HarnessName] = []
-    for harness in ("cursor", "nat"):
-        if any(row.harness == harness for row in results):
-            order.append(harness)
-    return tuple(order)
-
-
-def _group_episodes(rows: list[RunResult], *, retries: int) -> list[_EpisodeOutcome]:
-    by_episode: dict[tuple[str, int], list[RunResult]] = {}
-    for row in rows:
-        key = (row.scenario, row.run)
-        by_episode.setdefault(key, []).append(row)
-
-    outcomes: list[_EpisodeOutcome] = []
-    for episode_rows in by_episode.values():
-        attempts = {row.attempt: row for row in episode_rows}
-        first = attempts.get(1)
-        first_passed = first.passed if first is not None else False
-        with_retries_passed = any(
-            attempts.get(attempt) is not None and attempts[attempt].passed
-            for attempt in range(1, retries + 1)
-        )
-        outcomes.append(
-            _EpisodeOutcome(
-                first_passed=first_passed,
-                with_retries_passed=with_retries_passed,
-            )
-        )
-    return outcomes
-
-
-def _load_baseline_json(path: Path) -> dict[str, Any] | list[Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, (dict, list)):
-        msg = f"baseline JSON root must be object or array, got {type(payload).__name__!r}"
-        raise ValueError(msg)
-    return payload
-
 
 def _score_inventory_answer(baseline_path: Path, answer_text: str) -> bool:
-    baseline = _load_baseline_json(baseline_path)
+    baseline = load_baseline(baseline_path)
     return evaluate_inventory_answer(baseline, answer_text)
 
 
@@ -210,7 +71,7 @@ def run_episode_attempt(
     harness: HarnessName,
     *,
     scenario: str,
-    case: GoldenCase,
+    scoring_baseline: Path,
     repo_root: Path,
     env: dict[str, str],
     timeout_s: float,
@@ -237,7 +98,7 @@ def run_episode_attempt(
     if not answer.strip():
         return False, latency_s
 
-    passed = _score_inventory_answer(case.baseline, answer)
+    passed = _score_inventory_answer(scoring_baseline, answer)
     return passed, latency_s
 
 
@@ -250,6 +111,7 @@ def execute_eval(
     repo_root: Path,
     env: dict[str, str] | None = None,
     timeout_s: float = DEFAULT_TIMEOUT_S,
+    skip_ground_truth: bool = False,
 ) -> list[RunResult]:
     """Run all episodes and return per-attempt results."""
     if runs < 1:
@@ -258,15 +120,30 @@ def execute_eval(
 
     run_env = dict(os.environ if env is None else env)
     results: list[RunResult] = []
+    scoring_baselines: dict[str, Path] = {}
 
     for case in cases:
+        if case.scenario not in scoring_baselines:
+            if not skip_ground_truth:
+                refresh_ground_truth(case.scenario, repo_root=repo_root)
+            live_path = scoring_baseline_path(case.scenario)
+            if not live_path.is_file():
+                msg = (
+                    f"scoring baseline missing for scenario {case.scenario!r}: {live_path!s} "
+                    f"(run ./eval/ground_truth.sh {case.scenario} or omit --skip-ground-truth)"
+                )
+                raise FileNotFoundError(msg)
+            scoring_baselines[case.scenario] = live_path.resolve()
+
+    for case in cases:
+        scoring_baseline = scoring_baselines[case.scenario]
         for harness in harnesses:
             for run_index in range(1, runs + 1):
                 for attempt in range(1, retries + 1):
                     passed, latency_s = run_episode_attempt(
                         harness,
                         scenario=case.scenario,
-                        case=case,
+                        scoring_baseline=scoring_baseline,
                         repo_root=repo_root,
                         env=run_env,
                         timeout_s=timeout_s,
@@ -291,8 +168,10 @@ def _parse_harness(value: str) -> tuple[HarnessName, ...]:
     normalized = value.strip().lower()
     if normalized == "both":
         return ("cursor", "nat")
-    if normalized in ("cursor", "nat"):
-        return (normalized,)  # type: ignore[return-value]
+    if normalized == "cursor":
+        return ("cursor",)
+    if normalized == "nat":
+        return ("nat",)
     msg = f"invalid --harness {value!r}: expected 'cursor', 'nat', or 'both', got {value!r}"
     raise argparse.ArgumentTypeError(msg)
 
@@ -313,62 +192,6 @@ def _build_env(*, model: str | None) -> dict[str, str]:
     if model:
         run_env["NIM_MODEL"] = model
     return run_env
-
-
-def format_summary_table(summary: Summary) -> str:
-    """Render a compact human-readable summary table."""
-    headers = (
-        "harness",
-        "N",
-        "1st%",
-        "w/retry%",
-        "med_s",
-        "p90_s",
-    )
-    lines = [
-        " ".join(f"{header:>10}" for header in headers),
-    ]
-    for row in summary.by_harness:
-        lines.append(
-            " ".join(
-                (
-                    f"{row.harness:>10}",
-                    f"{row.n_episodes:>10d}",
-                    f"{row.first_attempt_pass_rate * 100:>9.1f}%",
-                    f"{row.with_retries_pass_rate * 100:>9.1f}%",
-                    f"{row.median_latency_s:>10.2f}",
-                    f"{row.p90_latency_s:>10.2f}",
-                )
-            )
-        )
-    return "\n".join(lines)
-
-
-def summary_to_json(summary: Summary) -> str:
-    """Serialize summary for machine consumption."""
-    payload = {
-        "retries": summary.retries,
-        "by_harness": [asdict(row) for row in summary.by_harness],
-    }
-    return json.dumps(payload, indent=2)
-
-
-def format_benchmark_markdown_table(summary: Summary) -> str:
-    """Render a Markdown table suitable for pasting into docs/BENCHMARKS.md."""
-    header = (
-        "| Harness | N | First-attempt % | With-retries % | Median latency (s) | P90 latency (s) |"
-    )
-    separator = "| --- | ---: | ---: | ---: | ---: | ---: |"
-    rows = [
-        (
-            f"| {row.harness} | {row.n_episodes} | "
-            f"{row.first_attempt_pass_rate * 100:.1f} | "
-            f"{row.with_retries_pass_rate * 100:.1f} | "
-            f"{row.median_latency_s:.2f} | {row.p90_latency_s:.2f} |"
-        )
-        for row in summary.by_harness
-    ]
-    return "\n".join([header, separator, *rows])
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -418,6 +241,11 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Subprocess timeout per harness attempt (default: {DEFAULT_TIMEOUT_S:.0f})",
     )
     parser.add_argument(
+        "--skip-ground-truth",
+        action="store_true",
+        help="Skip ground_truth.sh refresh; score against existing eval/fixtures/live/*.json",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Print summary JSON after the table",
@@ -444,15 +272,21 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     harnesses = _parse_harness(args.harness)
-    results = execute_eval(
-        cases,
-        harnesses=harnesses,
-        runs=args.runs,
-        retries=args.retries,
-        repo_root=REPO_ROOT,
-        env=_build_env(model=args.model),
-        timeout_s=args.timeout,
-    )
+    try:
+        results = execute_eval(
+            cases,
+            harnesses=harnesses,
+            runs=args.runs,
+            retries=args.retries,
+            repo_root=REPO_ROOT,
+            env=_build_env(model=args.model),
+            timeout_s=args.timeout,
+            skip_ground_truth=args.skip_ground_truth,
+        )
+    except (RuntimeError, FileNotFoundError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
     summary = summarize(results, args.retries)
     print(format_summary_table(summary))
     if args.json:

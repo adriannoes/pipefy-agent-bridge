@@ -69,51 +69,9 @@ load_scenario_prompt() {
 	printf '%s' "$prompt"
 }
 
-# Prefer org/pipe ids from Act 1 baseline (correct) over DEMO_ORG_ID when they differ.
-inventory_org_id_for_prompt() {
-	baseline_path="$REPO_ROOT/eval/fixtures/live/inventory.json"
-	if [ -f "$baseline_path" ]; then
-		resolved=$(uv run python -c "
-import json
-from pathlib import Path
-data = json.loads(Path('$baseline_path').read_text(encoding='utf-8'))
-orgs = data.get('organizations') or []
-if orgs and isinstance(orgs[0], dict) and orgs[0].get('id') is not None:
-    print(str(orgs[0]['id']).strip())
-" 2>/dev/null || true)
-		if [ -n "$resolved" ]; then
-			printf '%s' "$resolved"
-			return 0
-		fi
-	fi
-	printf '%s' "$DEMO_ORG_ID"
-}
-
-# Inventory: bake org id + concrete pipe_id examples into nat input for 8b tool args.
-append_inventory_nat_hints() {
-	base_prompt=$1
-	org_id=$2
-	pipe_hints=
-	baseline_path="$REPO_ROOT/eval/fixtures/live/inventory.json"
-	if [ -f "$baseline_path" ]; then
-		pipe_hints=$(uv run python -c "
-import json
-from pathlib import Path
-data = json.loads(Path('$baseline_path').read_text(encoding='utf-8'))
-pipes = (data.get('organizations') or [{}])[0].get('pipes') or []
-ids = [str(p['id']) for p in pipes if isinstance(p, dict) and p.get('id')]
-if ids:
-    print('get_cards once per pipe_id (first=50): ' + ', '.join(ids))
-" 2>/dev/null || true)
-	fi
-	printf '%s\n\nPipefy MCP (inventory):\n- search_pipes once: organization_id integer %s, max_pipes_per_org 500. Do not pass pipe_name.\n- get_cards: pipe_id must be the numeric id string only (never English placeholders).\n%s\n- Reply with one line per pipe (Name → N open cards) after all get_cards calls.' \
-		"$base_prompt" "$org_id" "${pipe_hints:-  - Use each id field from the search_pipes pipes array.}"
-}
-
+# Inventory MCP hints: shared with eval/inventory_prompt.py (profiler + smoke).
 resolve_inventory_prompt() {
-	base_prompt=$1
-	org_id=$(inventory_org_id_for_prompt)
-	append_inventory_nat_hints "$base_prompt" "$org_id"
+	uv run python -m eval.inventory_prompt --print-prompt --demo-org-id "$DEMO_ORG_ID"
 }
 
 # True when MCP tool output shows a non-empty pipes list (search_pipes succeeded).
@@ -153,9 +111,10 @@ main() {
 		die "NAT config not found: $config_path"
 	fi
 
-	prompt=$(load_scenario_prompt)
 	if [ "$SCENARIO" = "inventory" ]; then
-		prompt=$(resolve_inventory_prompt "$prompt")
+		prompt=$(resolve_inventory_prompt)
+	else
+		prompt=$(load_scenario_prompt)
 	fi
 	prompt_rel="demos/prompts/${SCENARIO}.txt"
 

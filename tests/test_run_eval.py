@@ -1,10 +1,10 @@
-"""Offline tests for eval/run_eval.py aggregation (PRD-2 FR-7)."""
+"""Offline tests for eval/eval_summary.py aggregation (PRD-2 FR-7)."""
 
 from __future__ import annotations
 
 import pytest
 
-from eval.run_eval import (
+from eval.eval_summary import (
     RunResult,
     format_benchmark_markdown_table,
     percentile,
@@ -59,6 +59,8 @@ def test_summarize_all_fail() -> None:
     assert nat.n_episodes == 2
     assert nat.first_attempt_pass_rate == 0.0
     assert nat.with_retries_pass_rate == 0.0
+    assert nat.median_latency_s == pytest.approx(17.5)
+    assert nat.p90_latency_s == pytest.approx(17.9, rel=1e-2)
 
 
 def test_summarize_mixed_first_fail_second_pass() -> None:
@@ -71,6 +73,7 @@ def test_summarize_mixed_first_fail_second_pass() -> None:
     assert nat.n_episodes == 1
     assert nat.first_attempt_pass_rate == 0.0
     assert nat.with_retries_pass_rate == 1.0
+    assert nat.median_latency_s == pytest.approx(30.0)
 
 
 def test_summarize_latency_percentiles() -> None:
@@ -122,3 +125,4 @@ def test_summarize_both_harnesses() -> None:
     assert cursor.first_attempt_pass_rate == 1.0
     assert nat.first_attempt_pass_rate == 0.0
     assert nat.with_retries_pass_rate == 1.0
+    assert nat.median_latency_s == pytest.approx(40.0)

@@ -3,6 +3,9 @@
 # Requires: .env (NVIDIA_API_KEY, Pipefy creds, DEMO_ORG_ID), make install-nat-demo, nvidia-nat-profiler.
 # Example: make profile-nat
 #          make profile-nat SCENARIO=inventory NIM_MODEL=meta/llama-3.1-70b-instruct
+#
+# Bundled profile JSON is lean by default (summary + artifact file paths). Set
+# EMBED_ARTIFACTS=1 to pass --embed-artifacts and inline full NAT JSON traces.
 
 set -eu
 
@@ -89,14 +92,21 @@ main() {
 		exit "$nat_status"
 	fi
 
+	bundle_extra_args=
+	if [ "${EMBED_ARTIFACTS:-0}" = "1" ]; then
+		bundle_extra_args="--embed-artifacts"
+	fi
+
 	bundle_status=0
+	# shellcheck disable=SC2086
 	uv run python "$REPO_ROOT/eval/bundle_nat_profile.py" \
 		--run-dir "$RUN_DIR" \
 		--out "$BUNDLE_PATH" \
 		--scenario "$SCENARIO" \
 		--workflow-config "$NAT_PROFILE_CONFIG" \
 		--model "$nim_model" \
-		--organization-id "$DEMO_ORG_ID" || bundle_status=$?
+		--organization-id "$DEMO_ORG_ID" \
+		$bundle_extra_args || bundle_status=$?
 
 	if [ "$bundle_status" -ne 0 ]; then
 		die "profiler bundle failed (see $RUN_DIR)"

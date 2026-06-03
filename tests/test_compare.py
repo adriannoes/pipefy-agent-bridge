@@ -11,7 +11,7 @@ import pytest
 
 from eval.compare import (
     InventoryFacts,
-    _load_baseline,
+    load_baseline,
     compare_inventory_facts,
     evaluate_inventory_answer,
     extract_answer_facts,
@@ -293,7 +293,7 @@ def test_load_baseline_invalid_json_root_raises(tmp_path: Path) -> None:
     path = tmp_path / "bad.json"
     path.write_text("42", encoding="utf-8")
     with pytest.raises(ValueError, match="object or array"):
-        _load_baseline(path)
+        load_baseline(path)
 
 
 def test_compare_inventory_facts_infers_count_from_names() -> None:

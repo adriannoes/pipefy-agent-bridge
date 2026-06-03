@@ -2,7 +2,7 @@
 
 Public, reproducible numbers for the **inventory** golden scenario across the **Cursor SDK** and **NVIDIA NAT** harnesses. Live runs are **operator-invoked** (needs `.env` with Pipefy + NVIDIA keys); CI stays lint-only.
 
-> **Status:** **Dated live run (2026-06-03)** below. Re-run when org data or harness deps change; numbers are environment-specific.
+> **Status:** **Post-fix live run (2026-06-03)** below scores `eval/fixtures/live/inventory.json` after `eval/ground_truth.sh`. Pre-fix table (example fixture) is archived in git history — do not use for D18/D19.
 
 ## Run metadata
 
@@ -13,7 +13,7 @@ Public, reproducible numbers for the **inventory** golden scenario across the **
 | **`cursor-sdk`** | `0.1.6` _(Makefile `CURSOR_SDK_VERSION`)_ |
 | **`nvidia-nat` (+ profiler extra)** | `1.7.0` _(Makefile `NVIDIA_NAT_VERSION`; profiler via `nvidia-nat-profiler`)_ |
 | **NIM model (NAT)** | `meta/llama-3.1-8b-instruct` _(default; override with `EVAL_ARGS=--model …` or `NIM_MODEL=…`)_ |
-| **Golden scenario** | `inventory` (`eval/golden.yaml` → `eval/fixtures/example/inventory.json`) |
+| **Golden scenario** | `inventory` (`eval/golden.yaml` → `example_baseline` fixture; **scoring** uses `eval/fixtures/live/inventory.json`) |
 | **Runner settings (NAT)** | `--runs 3`, `--retries 3`, `--harness nat` |
 | **Runner settings (Cursor)** | `--runs 1`, `--retries 3`, `--harness cursor` _(smoke row; re-run with `--runs 5` for parity)_ |
 
@@ -25,14 +25,15 @@ Measured with `eval/run_eval.py` scoring via `eval/compare.py` against the live 
 
 | Harness | N | First-attempt % | With-retries % | Median latency (s) | P90 latency (s) |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| cursor | 1 | 0.0 | 0.0 | 26.45 | 38.17 |
-| nat | 3 | 0.0 | 0.0 | 19.86 | 31.27 |
+| nat | 3 | 33.3 | 66.7 | 35.92 | 205.60 |
+
+_Pre-fix (invalid baseline): cursor 1 / 0% / 0% / 26.45 / 38.17; nat 3 / 0% / 0% / 19.86 / 31.27 — scored against `eval/fixtures/example/inventory.json`._
 
 **Metric definitions**
 
 - **First-attempt %:** share of episodes that passed on attempt 1 (`--retries` window still applies to episode structure, but only attempt 1 counts).
 - **With-retries %:** share of episodes where any attempt in `1..retries` passed (runner stops early on first pass).
-- **Median / P90 latency (s):** wall-clock per harness **attempt** (includes failed attempts), aggregated across all attempts in the run.
+- **Median / P90 latency (s):** wall-clock **per episode** — sum of attempt latencies until pass or retries exhausted (post-fix runner; pre-fix table used per-attempt aggregation).
 
 **Reproduce command (NAT, 8b):**
 

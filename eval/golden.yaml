@@ -1,18 +1,15 @@
 # Golden evaluation set (PRD-2 FR-1).
-# Each entry references a committed CLI baseline and expected facts scored via eval/compare.py (D12).
+# example_baseline: committed fixture for schema/docs; expect validates that fixture (D12).
+# Scoring (run_eval): eval/fixtures/live/<scenario>.json after eval/ground_truth.sh.
 #
 # Optional scenarios (enable when fixtures exist under eval/fixtures/example/):
 # - scenario: stale_cards
-#   baseline: eval/fixtures/example/stale_cards.json
+#   example_baseline: eval/fixtures/example/stale_cards.json
 #   expect:
 #     min_stale_cards: 1
-# - scenario: summary
-#   baseline: eval/fixtures/example/summary.json
-#   expect:
-#     min_pipes: 1
 
 - scenario: inventory
-  baseline: eval/fixtures/example/inventory.json
+  example_baseline: eval/fixtures/example/inventory.json
   expect:
     min_pipes: 3
     pipe_name_substrings:

@@ -197,7 +197,7 @@ def _extract_stated_pipe_count(answer: str, *, expected: int | None = None) -> i
     return values[0]
 
 
-def _load_baseline(path: Path) -> dict[str, Any] | list[Any]:
+def load_baseline(path: Path) -> dict[str, Any] | list[Any]:
     raw = path.read_text(encoding="utf-8")
     payload = json.loads(raw)
     if not isinstance(payload, (dict, list)):
@@ -215,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--answer", required=True, type=Path, help="Path to agent answer text")
     args = parser.parse_args(argv)
 
-    baseline = _load_baseline(args.baseline)
+    baseline = load_baseline(args.baseline)
     answer = args.answer.read_text(encoding="utf-8")
     passed = evaluate_inventory_answer(baseline, answer)
     print("✓" if passed else "✗")
