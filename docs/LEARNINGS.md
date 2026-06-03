@@ -107,6 +107,17 @@ make demo-nat           # may need 2–3 attempts with 8b on busy orgs
 
 **Flakiness observed (2025-06-02, post-fix):** back-to-back `make demo-nat` on the same org can be **1/3–3/3** in one session (incomplete single-pipe answers vs full 5-pipe inventory). Treat a single failure as normal for 8b; rely on tour retries or `NIM_MODEL=meta/llama-3.1-70b-instruct` when the key tier allows.
 
+**Reliability pass (2025-06-03):**
+
+| Change | Why |
+|--------|-----|
+| `demos/02_nat_smoke.sh` injects `organization_id` from `eval/fixtures/live/inventory.json` (not doubled `DEMO_ORG_ID`) plus compact `get_cards` pipe_id list | 8b omitted `organization_id` or used prose placeholders; local `.env` had `302398434302398434` while CLI baseline org is `302398434`. |
+| `scripts/extract_nat_answer.py` strips `Agent input`, skips tool-call JSON, scores richest `Final Answer` / `Workflow Result`, unescapes `\\n` | False passes when compare matched hint text; missed multi-pipe answers on one line. |
+| Smoke requires ≥3 `→` pipe entries in extracted text + `eval/compare.py` | Blocks tool-only `Workflow Result` and single-pipe early stops. |
+| `configs/pipefy_nat_workflow.yml` + `demos/prompts/inventory.txt` tightened steps | Fewer invented `pipe_id` strings and “no pipes” answers. |
+
+**Measured first-attempt (5× `make demo-nat SCENARIO=inventory`, same session):** before **1/5** (median ~19s); after **3/5** (median ~16–21s on passing runs). Still see recursion-limit loops and search-only exits (~4s fails). **Recommendation:** keep **8b** default for cost; use **`NIM_MODEL=meta/llama-3.1-70b-instruct`** when first-attempt green matters; keep `scripts/tour.sh` NAT retries for demos.
+
 ---
 
 ## Tour / Encore (`eval/compare.py`)

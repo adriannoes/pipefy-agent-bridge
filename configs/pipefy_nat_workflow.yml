@@ -39,14 +39,14 @@ workflow:
   parse_agent_response_max_retries: 3
   raise_on_parsing_failure: false
   additional_instructions: |
-    Inventory task (read-only). You have only search_pipes and get_cards. Hard cap: 7 tool calls total, then Final Answer.
+    Inventory task (read-only). Tools: search_pipes and get_cards only. Hard cap: 7 tool calls, then Final Answer.
 
-    Step A — search_pipes once with organization_id equal to the integer DEMO_ORG_ID and max_pipes_per_org=500.
-    Do not pass pipe_name or any other filter. If the response pipes array is non-empty, you must list those pipes in the Final Answer.
+    Step A — search_pipes exactly once. Required arguments: organization_id (integer DEMO_ORG_ID), max_pipes_per_org 500.
+    Forbidden: pipe_name, filters, or calling search_pipes twice. Empty pipes array only if search truly returned none.
 
-    Step B — for every pipe id in that pipes array, call get_cards exactly once with that pipe_id and first=50.
-    Open card count = length of the cards list in the response. Do not invent ids. Do not call search_pipes again.
+    Step B — for each object in the pipes array, call get_cards with pipe_id set to that object's id digits only and first=50.
+    Example shape: pipe_id 306995611, first 50. Open card count = len(cards). No prose in pipe_id. Never skip a pipe.
 
-    Step C — Final Answer only after Step B for all pipes. Format: one line per pipe as "Pipe Name → N open cards".
-    If pipes_truncated is true, add one sentence like "5 pipes shown of 274 total in the org".
-    Never say "no pipes" when search_pipes returned any pipe.
+    Step C — Final Answer only after get_cards for every pipe in Step A. One line each: "Pipe Name → N open cards".
+    You must name all pipes from Step A; stopping after one pipe is wrong. If pipes_truncated, add "N pipes shown of M total".
+    Never say "no pipes" when the pipes array was non-empty.

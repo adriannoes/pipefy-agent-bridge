@@ -45,6 +45,47 @@ Analytics → 0
     assert "partial" not in extract_nat_answer_text(raw)
 
 
+def test_extract_unescapes_newlines_in_workflow_result() -> None:
+    raw = '''
+Workflow Result:
+"Reimbursement → 6 open cards\\nAnalytics → 0 open cards\\nVacation Requests → 3 open cards"
+--------------------------------------------------
+'''
+    result = extract_nat_answer_text(raw)
+    assert result.count("→") >= 3
+
+
+def test_extract_ignores_agent_thoughts_tool_json() -> None:
+    raw = """
+Workflow Result:
+one line per pipe with open card counts.
+Agent's thoughts:
+{"name": "pipefy__get_cards", "parameters": {"pipe_id": "306995611", "first": 50}}
+--------------------------------------------------
+Final Answer: Reimbursement → 8 open cards
+Analytics → 0 open cards
+"""
+    result = extract_nat_answer_text(raw)
+    assert "Reimbursement" in result
+    assert "pipefy__get_cards" not in result
+
+
+def test_extract_prefers_richer_inventory_answer() -> None:
+    raw = """
+Workflow Result:
+Reimbursement → 7 open cards. 5 pipes shown of 274 total.
+--------------------------------------------------
+Final Answer: Reimbursement → 8 open cards
+[Template] Team Task Management → 1 open card
+Travel Reimbursement (Orchestrated) → 1 open card
+Vacation Requests → 3 open cards
+Analytics → 0 open cards
+"""
+    result = extract_nat_answer_text(raw)
+    assert "[Template]" in result
+    assert "Analytics" in result
+
+
 def test_extract_prefers_last_non_empty_final_answer() -> None:
     raw = "Final Answer: Real answer text\n---\nFinal Answer:   "
     assert extract_nat_answer_text(raw) == "Real answer text"
@@ -70,12 +111,24 @@ def test_extract_strips_ansi_escape_sequences() -> None:
     assert extract_nat_answer_text(raw) == "Hello world"
 
 
-def test_extract_fallback_uses_last_substantial_lines() -> None:
-    lines = [f"line-{i}" for i in range(50)]
-    raw = "\n".join(lines)
+def test_extract_fallback_uses_inventory_arrow_lines_only() -> None:
+    raw = "\n".join(
+        [
+            "log noise",
+            "Reimbursement → 8 open cards",
+            "Analytics → 0 open cards",
+            "trailing noise",
+        ]
+    )
     result = extract_nat_answer_text(raw)
-    assert "line-49" in result
-    assert "line-0" not in result
+    assert "Reimbursement" in result
+    assert "Analytics" in result
+    assert "log noise" not in result
+
+
+def test_extract_returns_empty_without_inventory_prose() -> None:
+    raw = "\n".join([f"line-{i}" for i in range(50)])
+    assert extract_nat_answer_text(raw) == ""
 
 
 def test_extract_empty_string_returns_empty() -> None:
