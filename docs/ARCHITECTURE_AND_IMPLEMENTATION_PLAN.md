@@ -735,8 +735,8 @@ This structure makes the **shared MCP layer** obvious: Acts 2 and 3 differ only 
 | `make help` | Lists acts and scenarios |
 | `make doctor` | Preflight: binaries, env vars, read-only Pipefy ping |
 | `make install-pipefy-tools` | Install pipefy/ai-toolkit (`install.sh` or `uv tool install`) @ pinned tag |
-| `make install-cursor-demo` | `uv pip install cursor-sdk` (+ dotenv if used) |
-| `make install-nat-demo` | `uv pip install "nvidia-nat[mcp]"` |
+| `make install-cursor-demo` | `uv pip install cursor-sdk==0.1.6 python-dotenv` (as built) |
+| `make install-nat-demo` | `uv pip install "nvidia-nat[langchain,mcp]==1.7.0"` (as built) |
 | `make demo-cursor [SCENARIO=inventory]` | Cursor SDK + MCP |
 | `make demo-nat [SCENARIO=inventory]` | NAT + NIM + MCP |
 | `make tour` | Acts 1–3 + `eval/compare.py` |
