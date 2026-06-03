@@ -793,6 +793,8 @@ Avoid raw JSON dumps unless `VERBOSE=1` is set.
 | Encore | `eval/compare.py` on Cursor and NAT answers vs baseline (count + pipe-name substrings). |
 | Exit | `0` only if all steps pass; `TOUR_KEEP_TMP=1` preserves temp answer paths for debugging. |
 
+**Reliability contract (D19):** **Act 2 (Cursor)** is the guaranteed-green path; **Act 3 (NAT, 8b)** is **best-effort** — first-attempt ~3/5 with 8b, made dependable via compare-gated retries. `70b` is an opt-in upgrade (`NIM_MODEL=…`) where the operator's NVIDIA tier allows (D18). First-attempt NAT reliability is a **measured objective in PRD-2** (profiler + golden eval), not something we over-tune the prompt for here.
+
 **Encore / baseline alignment:** When CLI JSON has `pipes_truncated: true` (or `pipesCount > len(pipes[])`), `eval/compare.py` fact-checks the **visible page**, not org-wide `pipesCount`. Agent answers that mention both “5 pipes” and “274 total” should match the listed count. Operational detail: [LEARNINGS.md](LEARNINGS.md).
 
 **NAT + 8b:** Default `meta/llama-3.1-8b-instruct` is demo-capable but may need multiple tour attempts (wrong tool args, recursion limit, incomplete `Final Answer`). Upgrade path: `meta/llama-3.1-70b-instruct` in workflow YAML when the operator’s NIM tier allows ([OPEN_DECISIONS.md](OPEN_DECISIONS.md) D18).

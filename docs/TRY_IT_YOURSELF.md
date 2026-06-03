@@ -193,6 +193,8 @@ nat run --config_file "${NAT_CONFIG_FILE:-configs/pipefy_nat_workflow.yml}" \
 
 **8b expectations:** The default NIM model can hit recursion limits, invent `search_pipes` filters, or stop with an incomplete `Final Answer`. `demos/02_nat_smoke.sh` fails on workflow errors, missing `Final Answer:`, or “no pipes” when tools returned data. A single `make demo-nat` may need **2–3 runs** on busy orgs; `make tour` retries NAT automatically (Step 4).
 
+> **Reliability contract:** **Step 2 (Cursor)** is the guaranteed-green path; **Step 3 (NAT, 8b)** is **best-effort** (compare-gated, retried in the tour). For a more reliable first attempt, set `NIM_MODEL=meta/llama-3.1-70b-instruct` if your NVIDIA tier allows it (opt-in; see [OPEN_DECISIONS.md](OPEN_DECISIONS.md) D18/D19). First-attempt NAT reliability is a measured objective in PRD-2.
+
 **What you should see:**
 
 - NAT startup banner and tool discovery.

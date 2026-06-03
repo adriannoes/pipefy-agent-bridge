@@ -33,6 +33,8 @@ We document build-time discoveries in **[docs/LEARNINGS.md](docs/LEARNINGS.md)**
 
 **Tour status:** With valid credentials, `make tour` is intended to exit `0` after Acts 1–3; Act 3 may run NAT up to **3×** (compare-gated) before Encore—see [LEARNINGS](docs/LEARNINGS.md) if Act 3 or Encore fails on the first try.
 
+**Reliability contract:** **Act 2 (Cursor)** is the guaranteed-green path; **Act 3 (NAT, 8b)** is **best-effort** (retried, compare-gated). For a more reliable first attempt, set `NIM_MODEL=meta/llama-3.1-70b-instruct` if your NVIDIA tier allows (opt-in; see [OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) D18/D19). First-attempt NAT reliability is a measured objective in [PRD-2](product/prd/prd-2-nat-profiler-and-evaluation.md).
+
 ## Documentation
 
 | Document | Purpose |

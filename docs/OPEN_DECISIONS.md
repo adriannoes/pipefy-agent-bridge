@@ -64,6 +64,7 @@ Decisions that are **intentionally deferred** in the architecture plan. Resolve 
 | D13 | Sensitive fixtures | **`eval/fixtures/example/` committed** (synthetic), **`eval/fixtures/live/` gitignored** | 2026-06-02 |
 | D14 | Recording doc | **No `DEMO_RECORDING.md`** — recording kept as a single optional paragraph in `TRY_IT_YOURSELF.md` (recording is a low-priority secondary artifact) | 2026-06-02 |
 | D18 | NIM `70b` API tier check | **Not validated for MVP** — `inventory` gate uses **8b** only. Operators may set `model_name: meta/llama-3.1-70b-instruct` in the workflow YAML if their [NVIDIA Build](https://build.nvidia.com/) tier allows it; no automated check in `make doctor` | 2026-06-02 |
+| D19 | NAT tour reliability contract | **Act 2 (Cursor) = guaranteed-green; Act 3 (NAT 8b) = best-effort** (compare-gated retries). Keep 8b default (low public barrier); `70b` opt-in (D18). First-attempt NAT reliability is measured in **PRD-2**, not over-tuned in the prompt. Hardening pass reached ~3/5 first-attempt; see [LEARNINGS.md](LEARNINGS.md) | 2026-06-03 |
 | D20 | Demo harness dependency pins | **`cursor-sdk==0.1.6`**, **`python-dotenv==1.2.2`**, **`nvidia-nat[langchain,mcp]==1.7.0`** in `Makefile` install targets | 2026-06-02 |
 
 ---
