@@ -1,7 +1,7 @@
 # PRD-2: NAT Profiler & Evaluation
 
-**Status:** Draft for sign-off
-**Version:** 0.1
+**Status:** Done (2026-06-03)
+**Version:** 1.0
 **Date:** 2026-06-03
 **Owner:** Repository maintainer
 **Related documents:**
@@ -82,17 +82,30 @@ The deliverable answers, with evidence: "How often, how fast, and how correctly 
 
 ---
 
-## 8. Open Questions
+## 8. Open Questions (resolved at ship)
 
-1. **N (runs per scenario)** default for the reliability metric (e.g. 5 vs 10) — trade-off between signal and NIM cost/time.
-2. **Profiler output shape** and whether NAT exposes per-tool timing we can chart, or only end-to-end.
-3. **Reliability target** to declare "good enough" (e.g. ≥80% first-attempt on `inventory` with 8b) — or do we accept retries as the contract and target with-retries ~100%?
-4. **70b** inclusion: run the comparison only if D18 (key tier) is resolved.
+1. **N (runs per scenario):** default **5** in `run_eval`; close-out used **3** for NAT (operator time/cost).
+2. **Profiler output shape:** lean bundle (`summary` + `files` paths); full JSON via `EMBED_ARTIFACTS=1` / `--embed-artifacts`.
+3. **Reliability target:** D19 — NAT 8b **best-effort** on golden facts; with-retries is the practical contract (see [BENCHMARKS.md](../../docs/BENCHMARKS.md) post-fix run).
+4. **70b:** not measured at close-out; optional operator follow-up (D18).
 
 ---
 
 ## 9. Dependencies & Sequencing
 
 - **Depends on:** shipped MVP (PRD-1) — reuses `eval/`, `scripts/`, `configs/`.
-- **Precursor (optional, parallel):** a tactical NAT-stabilization pass (prompt/tool-subset/model tuning) may run before or alongside this PRD; PRD-2 measures whether it helped.
+- **Shipped:** [engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md](../../engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md) (tasks 1.0–6.0 complete); commits through `44a024d` (`fix(eval): score against live baseline…`).
 - **Independent of:** PRD-3 (Cloud), PRD-4 (GPU).
+
+---
+
+## 10. Shipped summary
+
+| Deliverable | Location |
+|-------------|----------|
+| Golden set (`inventory`) | `eval/golden.yaml`, `eval/golden_loader.py`, live scoring via `ground_truth.sh` |
+| Reliability runner | `make eval` / `eval/run_eval.py`, `eval/eval_summary.py` |
+| NAT profiler (opt-in) | `make profile-nat`, `configs/pipefy_nat_workflow_profile.yml` |
+| Public benchmarks | [docs/BENCHMARKS.md](../../docs/BENCHMARKS.md) (NAT 8b post-fix: 33% / 67% first-attempt / with-retries, N=3, 2026-06-03) |
+
+**Operator follow-ups (not blocking PRD-3):** Cursor `make eval` with `--runs 5`; NAT **70b** run; live `profile-nat` to refresh `eval/fixtures/example/profile.json`.

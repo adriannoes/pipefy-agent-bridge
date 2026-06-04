@@ -1,5 +1,7 @@
 # Tasks — PRD-2: NAT Profiler & Evaluation
 
+**PRD status:** **Done** (2026-06-03) — all tasks 1.0–6.0 complete; proceed to PRD-3.
+
 **PRD:** [product/prd/prd-2-nat-profiler-and-evaluation.md](../../product/prd/prd-2-nat-profiler-and-evaluation.md)
 **Architecture:** [docs/ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md](../../docs/ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md) (Phase 5; §17 evaluation)
 **Baseline:** PRD-1 (shipped) — reuses `eval/compare.py`, `eval/ground_truth.sh`, `scripts/extract_nat_answer.py`.

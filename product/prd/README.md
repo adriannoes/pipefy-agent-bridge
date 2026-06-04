@@ -22,7 +22,7 @@ The initiative is split into **one MVP PRD + three stretch PRDs**, mapped 1:1 to
 |-----|------|--------|----------|---------------|
 | **PRD-1 — Reproducible MVP Tour** | [prd-pipefy-agent-bridge-mvp.md](prd-pipefy-agent-bridge-mvp.md) | **Done** (2026-06-02) | 0–4 (shipped) | `doctor` → `demo-cursor` → `demo-nat` → `tour` for `inventory`, `eval/compare.py` fact check, lint-only CI, TRY_IT_YOURSELF Steps 0–4 |
 | **PRD-2 — NAT Profiler & Evaluation** | [prd-2-nat-profiler-and-evaluation.md](prd-2-nat-profiler-and-evaluation.md) | **Done** (2026-06-03) | 5 | NAT profiler, `eval/golden.yaml`, `make eval` reliability runner, dated [`docs/BENCHMARKS.md`](../../docs/BENCHMARKS.md) |
-| **PRD-3 — Cursor Cloud Agent** | _not written_ | Backlog | 6 | `CloudAgentOptions` + `repos` + MCP stdio in a Cursor-hosted VM |
+| **PRD-3 — Cursor Cloud Agent** | [prd-3-cursor-cloud-agent.md](prd-3-cursor-cloud-agent.md) | Draft for sign-off | 6 | `CloudAgentOptions` + `repos` + MCP stdio in a Cursor-hosted VM. **Hard prereq:** repo pushed to GitHub + SCM connected (D15) |
 | **PRD-4 — GPU Semantic Search** | _not written_ | Backlog | 7 | NIM embeddings + FAISS/cuVS "find similar cards", with CPU fallback |
 
 **Status legend:** Draft for sign-off · Approved · In progress · Done · Backlog (not written yet).
@@ -41,24 +41,23 @@ The initiative is split into **one MVP PRD + three stretch PRDs**, mapped 1:1 to
 
 Execution trace: [engineering/tasks/tasks-prd-pipefy-agent-bridge-mvp.md](../../engineering/tasks/tasks-prd-pipefy-agent-bridge-mvp.md) (tasks 1.0–5.0 complete).
 
-### PRD-2 in progress — scope deltas (vs draft)
+### PRD-2 shipped — scope deltas (vs draft)
 
-| Area | Planned | As built (so far) |
-|------|---------|-------------------|
-| Golden set | Multiple scenarios | **`inventory` only** in `eval/golden.yaml`; `stale_cards`/`summary` commented optional until example fixtures exist |
-| Profiler | Enable on default `nat run` | **Opt-in** via `configs/pipefy_nat_workflow_profile.yml` + `make profile-nat`; default `make demo-nat` unchanged |
-| Reliability runner | `make eval` | **Shipped** — first-attempt vs with-retries pass rate, median/p90 latency, `8b`/`70b` via `--model` |
-| Benchmarks report | `docs/BENCHMARKS.md` | **Template shipped** (task 4.0); dated measured run + D18/D19 (task 5.3) pending operator |
+| Area | Planned | As built |
+|------|---------|----------|
+| Golden set | Multiple scenarios | **`inventory` only**; `example_baseline` + `expect` validate fixture; **scoring** uses `eval/fixtures/live/` after `ground_truth.sh` |
+| Profiler | Enable on default `nat run` | **Opt-in** via `configs/pipefy_nat_workflow_profile.yml` + `make profile-nat`; lean bundle default |
+| Reliability runner | `make eval` | **Shipped** — first-attempt vs with-retries, episode latency median/p90, `8b`/`70b` via `--model` |
+| Benchmarks report | `docs/BENCHMARKS.md` | **Dated post-fix NAT run** (2026-06-03); optional: Cursor N=5, 70b, live profiler refresh |
 
-Execution trace: [engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md](../../engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md) (tasks 1.0–3.0 complete; 4.0–5.4 open).
+Execution trace: [engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md](../../engineering/tasks/tasks-prd-2-nat-profiler-and-evaluation.md) (tasks 1.0–6.0 complete).
 
 ## Sequencing & dependencies
 
-- **PRD-1 (MVP) is done.** Stretch PRDs (2–4) depend on this baseline and are written
-  **just-in-time**, only when that phase is prioritized.
+- **PRD-1 (MVP) and PRD-2 (profiler & eval) are done.** Next stretch: **PRD-3 (Cloud)** or PRD-4 (GPU); PRDs are written **just-in-time** when prioritized.
 - **PRD-4 has an explicit gate:** do not start GPU semantic search until the MVP Cursor + NAT
   demos are green (architecture §12.4).
-- PRD-2 and PRD-3 are independent of each other; either can follow the MVP.
+- **PRD-3 (Cloud)** is the recommended next step after PRD-2; PRD-3 and PRD-4 are independent of each other.
 
 ## Out-of-PRD scope today
 

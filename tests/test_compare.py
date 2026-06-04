@@ -11,11 +11,11 @@ import pytest
 
 from eval.compare import (
     InventoryFacts,
-    load_baseline,
     compare_inventory_facts,
     evaluate_inventory_answer,
     extract_answer_facts,
     extract_baseline_facts,
+    load_baseline,
 )
 from eval.compare import (
     main as compare_main,

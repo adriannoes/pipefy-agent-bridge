@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from eval.golden_expect import validate_expect_against_baseline
 from eval.golden_errors import GoldenLoadError
+from eval.golden_expect import validate_expect_against_baseline
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_INVENTORY = REPO_ROOT / "eval" / "fixtures" / "example" / "inventory.json"
