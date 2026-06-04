@@ -115,7 +115,7 @@ make demo-nat           # may need 2–3 attempts with 8b on busy orgs
 
 | Change | Why |
 |--------|-----|
-| `demos/02_nat_smoke.sh` injects `organization_id` from `eval/fixtures/live/inventory.json` (not doubled `DEMO_ORG_ID`) plus compact `get_cards` pipe_id list | 8b omitted `organization_id` or used prose placeholders; local `.env` had `302398434302398434` while CLI baseline org is `302398434`. |
+| `demos/02_nat_smoke.sh` injects `organization_id` from `eval/fixtures/live/inventory.json` (not a doubled `DEMO_ORG_ID`) plus compact `get_cards` pipe_id list | 8b omitted `organization_id` or used prose placeholders; a local `.env` had a duplicated org id (e.g. `<id><id>`) while the CLI baseline carried the correct single id. |
 | `scripts/extract_nat_answer.py` strips `Agent input`, skips tool-call JSON, scores richest `Final Answer` / `Workflow Result`, unescapes `\\n` | False passes when compare matched hint text; missed multi-pipe answers on one line. |
 | Smoke requires ≥3 `→` pipe entries in extracted text + `eval/compare.py` | Blocks tool-only `Workflow Result` and single-pipe early stops. |
 | `configs/pipefy_nat_workflow.yml` + `demos/prompts/inventory.txt` tightened steps | Fewer invented `pipe_id` strings and “no pipes” answers. |
