@@ -11,6 +11,7 @@ All documentation for **pipefy-agent-bridge** lives in this directory.
 | 3 | [LEARNINGS.md](LEARNINGS.md) | Active | Operational learnings (Pipefy truncation, Cursor/NAT limits, Encore) |
 | 4 | [ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md](ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md) | Active | Architecture, justified decisions, phases, task epics |
 | 5 | [OPEN_DECISIONS.md](OPEN_DECISIONS.md) | Active | Resolved and open decisions |
+| — | [REPOSITORY_GOVERNANCE.md](REPOSITORY_GOVERNANCE.md) | Active | Branch `main`, Dependabot, ruleset when public |
 
 ## Supporting files (repository root)
 
@@ -18,6 +19,7 @@ All documentation for **pipefy-agent-bridge** lives in this directory.
 |------|---------|
 | [../.env.example](../.env.example) | Environment variable template |
 | [../.gitignore](../.gitignore) | Ignores secrets, `private/CONTEXT.md`, build artifacts |
+| [../SECURITY.md](../SECURITY.md) | Vulnerability reporting policy |
 
 ## Shipped layout (MVP)
 
