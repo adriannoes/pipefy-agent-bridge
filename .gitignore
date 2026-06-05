@@ -1,0 +1,49 @@
+# Environment and secrets
+.env
+.env.local
+*.pem
+
+# Embeddings passage cache (EMBED_CACHE_DIR)
+.cache/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# NeMo Agent Toolkit / NAT runtime
+.nat/
+*.log
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Maintainer-only Cursor workspace (keep environment.json + rules tracked)
+.cursor/**
+!.cursor/environment.json
+!.cursor/rules/
+!.cursor/rules/**
+
+
+# Optional local recordings
+recordings/
+*.cast
+
+# Live eval snapshots (may contain org-specific IDs)
+eval/fixtures/live/
+
+# NAT profiler runs (operator-only; may contain org-specific IDs)
+eval/profiles/
+
+# Saved agent run transcripts (may contain card data)
+eval/transcripts/

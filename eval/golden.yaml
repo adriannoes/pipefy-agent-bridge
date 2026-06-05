@@ -1,0 +1,29 @@
+# Golden evaluation set (PRD-2 FR-1).
+# example_baseline: committed fixture for schema/docs; expect validates that fixture (D12).
+# Scoring (run_eval): eval/fixtures/live/<scenario>.json after eval/ground_truth.sh.
+
+- scenario: inventory
+  example_baseline: eval/fixtures/example/inventory.json
+  expect:
+    min_pipes: 3
+    pipe_name_substrings:
+      - Onboarding Requests
+      - IT Helpdesk
+      - Procurement
+
+- scenario: stale_cards
+  example_baseline: eval/fixtures/example/stale_cards.json
+  expect:
+    min_stale_cards: 1
+    card_title_substrings:
+      - Old onboarding
+      - Stale helpdesk
+
+- scenario: summary
+  example_baseline: eval/fixtures/example/summary.json
+  expect:
+    min_cards: 3
+    card_title_substrings:
+      - Newest open
+      - Second newest
+      - Third backlog

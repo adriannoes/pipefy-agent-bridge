@@ -1,0 +1,4 @@
+{
+  "name": "pipefy-agent-bridge",
+  "install": "bash scripts/cloud_bootstrap.sh"
+}

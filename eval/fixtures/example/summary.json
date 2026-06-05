@@ -1,0 +1,26 @@
+{
+  "scenario": "summary",
+  "pipe_id": "900000101",
+  "max_cards": 5,
+  "cards": [
+    {
+      "id": "900000301",
+      "title": "Newest open request",
+      "phase_name": "In Progress",
+      "assignee_names": ["Alex Demo"]
+    },
+    {
+      "id": "900000302",
+      "title": "Second newest card",
+      "phase_name": "Submitted",
+      "assignee_names": []
+    },
+    {
+      "id": "900000303",
+      "title": "Third backlog item",
+      "phase_name": "Submitted",
+      "assignee_names": ["Sam Ops"]
+    }
+  ],
+  "card_count": 3
+}

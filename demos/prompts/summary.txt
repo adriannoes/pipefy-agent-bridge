@@ -1,0 +1,1 @@
+Summarize the five most recently created open cards in pipe DEMO_PIPE_ID, including title, current phase, and assignees.

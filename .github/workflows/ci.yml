@@ -1,0 +1,27 @@
+# Offline CI only — no Pipefy, NIM, or Cursor network calls.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra embeddings --frozen
+
+      - name: Lint and test
+        run: |
+          uv run ruff check .
+          uv run pytest tests/ -q

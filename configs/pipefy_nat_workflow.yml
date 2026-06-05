@@ -1,0 +1,52 @@
+# Pipefy inventory + read-only demos via NVIDIA NeMo Agent Toolkit.
+# Tool names: configs/tool_allowlist.yml @ pipefy/ai-toolkit v0.2.0-beta.2
+# Run (with .env loaded): nat run --config_file configs/pipefy_nat_workflow.yml --input "$(cat demos/prompts/inventory.txt)"
+
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-8b-instruct
+    api_key: "${NVIDIA_API_KEY}"
+
+function_groups:
+  pipefy:
+    _type: mcp_client
+    server:
+      transport: stdio
+      command: pipefy-mcp-server
+      env:
+        PIPEFY_SERVICE_ACCOUNT_CLIENT_ID: "${PIPEFY_SERVICE_ACCOUNT_CLIENT_ID}"
+        PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET: "${PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET}"
+        DEMO_ORG_ID: "${DEMO_ORG_ID}"
+        DEMO_PIPE_ID: "${DEMO_PIPE_ID:-}"
+    # Inventory-only: search + per-pipe card counts (no get_pipe — reduces 8b mis-routing).
+    include:
+      - search_pipes
+      - get_cards
+
+workflow:
+  _type: react_agent
+  tool_names:
+    - pipefy
+  llm_name: nim_llm
+  # Maps to max_tool_calls; recursion_limit = (max_tool_calls + 1) * 2 in NAT react_agent.
+  # inventory needs ~6 calls (1 search + N get_cards); 22 → recursion_limit 46.
+  max_iterations: 22
+  verbose: true
+  use_native_tool_calling: true
+  tool_call_max_retries: 2
+  retry_agent_response_parsing_errors: true
+  parse_agent_response_max_retries: 3
+  raise_on_parsing_failure: false
+  additional_instructions: |
+    Inventory task (read-only). Tools: search_pipes and get_cards only. Hard cap: 7 tool calls, then Final Answer.
+
+    Step A — search_pipes exactly once. Required arguments: organization_id (integer DEMO_ORG_ID), max_pipes_per_org 500.
+    Forbidden: pipe_name, filters, or calling search_pipes twice. Empty pipes array only if search truly returned none.
+
+    Step B — for each object in the pipes array, call get_cards with pipe_id set to that object's id digits only and first=50.
+    Example shape: pipe_id 306995611, first 50. Open card count = len(cards). No prose in pipe_id. Never skip a pipe.
+
+    Step C — Final Answer only after get_cards for every pipe in Step A. One line each: "Pipe Name → N open cards".
+    You must name all pipes from Step A; stopping after one pipe is wrong. If pipes_truncated, add "N pipes shown of M total".
+    Never say "no pipes" when the pipes array was non-empty.

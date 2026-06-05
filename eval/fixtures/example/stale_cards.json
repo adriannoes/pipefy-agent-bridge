@@ -1,0 +1,17 @@
+{
+  "scenario": "stale_cards",
+  "pipe_id": "900000101",
+  "phase_name": "Waiting Review",
+  "stale_threshold_days": 7,
+  "stale_cards": [
+    {
+      "id": "900000201",
+      "title": "Old onboarding request"
+    },
+    {
+      "id": "900000202",
+      "title": "Stale helpdesk ticket"
+    }
+  ],
+  "stale_count": 2
+}

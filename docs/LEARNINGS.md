@@ -1,0 +1,212 @@
+# Operational learnings
+
+Living notes from building the harnesses. Use this when debugging `make tour`, extending eval, or tuning NAT/Cursor.
+
+**Related:** [ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md](ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md) · [OPEN_DECISIONS.md](OPEN_DECISIONS.md) · [TRY_IT_YOURSELF.md](TRY_IT_YOURSELF.md)
+
+---
+
+## Pipefy CLI / MCP
+
+### `pipesCount` vs `pipes[]` (truncated inventory)
+
+**What we saw:** `pipefy pipe list --json` can return:
+
+- `pipesCount`: org-wide total (e.g. `274`)
+- `pipes[]`: only the first page (e.g. `5` pipes)
+- `search_limits.pipes_truncated: true` and/or per-org `pipes_truncated: true`
+
+**Why it matters:** Agents and the Act 1 tour summary describe the **visible page** (5 pipes). If `eval/compare.py` uses `pipesCount` as the baseline count, the **Encore** fact check fails even when the agent answer is correct for the listed pipes.
+
+**What we did:** In `eval/compare.py`, when truncation flags are set (or `pipesCount > len(pipes[])`), baseline `pipe_count` = `len(pipes[])`, not `pipesCount`. Agent answers that cite both “5 pipes” and “274 total” prefer the count that matches the visible list.
+
+**Takeaway for readers:** Treat CLI JSON as “page + metadata,” not always as a full enumeration. For org-wide inventory at scale, expect truncation unless the toolkit adds pagination helpers.
+
+### MCP tool surface vs demo quality
+
+**What we saw:** A broad allowlist (12 tools) is correct for the repo contract, but **NVIDIA `react_agent` + 8b** wanders into `find_cards`, `get_phase_fields`, `get_organization`, etc., burning steps and failing Pydantic validation.
+
+**What we did:** `configs/pipefy_nat_workflow.yml` uses a **2-tool** NAT subset: `search_pipes`, `get_cards` only (still a subset of `tool_allowlist.yml`).
+
+---
+
+## Cursor SDK harness
+
+### Generally reliable for `inventory`
+
+**What we saw:** `make demo-cursor SCENARIO=inventory` usually completes in ~25–90s with multiple MCP tool calls and a markdown table answer. Encore compare passes when the answer lists the same pipe names as the CLI page.
+
+**Caveats:**
+
+- Answers may mention org total (`274`) **and** visible pipes (`5`); compare logic must not treat `274` as the fact-check count when the baseline is truncated.
+- Occasional extra tools (`grep`, `shell`) increase latency; not required for inventory.
+
+---
+
+## NVIDIA NeMo Agent Toolkit + NIM
+
+### Default `meta/llama-3.1-8b-instruct` is demo-capable but flaky
+
+**What we saw (repeatable):**
+
+| Symptom | Cause |
+|--------|--------|
+| `Recursion limit of N reached` | NAT sets `recursion_limit = (max_tool_calls + 1) * 2`. YAML `max_iterations` maps to **`max_tool_calls`**, not a separate knob. Too many bad tool calls exhaust the graph. |
+| `search_pipes` with `pipe_name` / missing `organization_id` | 8b invents filters; returns empty `organizations[]`; agent concludes “no pipes”. |
+| Malformed tool JSON (`pipe_id` nested in a string) | Native tool calling + weak model; validation errors loop until recursion limit. |
+| `get_organization` loops | Wrong org id → permission errors; agent retries until limit. |
+| `Final Answer: No pipes found` while log shows pipes | Agent ignored successful `search_pipes`; smoke/tour must reject this. |
+| Incomplete Final Answer (1 pipe only) | Agent stops early; Encore compare fails on missing names. |
+| Exit code `0` on workflow error | `nat run` may still exit 0; `demos/02_nat_smoke.sh` greps for `ReAct Agent failed`, `Recursion limit`, and requires `Final Answer:`. |
+
+**70b probe (2025-06-02):** `NIM_MODEL=meta/llama-3.1-70b-instruct` can authenticate but still return incomplete inventory; keep **8b** as default until tier + quality are validated.
+
+**Golden eval:** `run_eval` refreshes `eval/fixtures/live/` via `ground_truth.sh` before scoring (same path as tour). The **2026-06-03** table in [BENCHMARKS.md](BENCHMARKS.md) used the **example** fixture by mistake — re-run `make eval` for valid D18/D19 numbers.
+
+**Why 8b is still the default (D9):** Sufficient for the thin `inventory` slice when guided; keeps NIM cost/low tier barrier low. **`70b`** is documented as an upgrade path when the maintainer’s key tier allows it (see OPEN_DECISIONS D18).
+
+### Workflow / prompt constraints
+
+| Topic | Learning |
+|-------|----------|
+| `additional_instructions` | **Do not** put raw `{...}` JSON in YAML — LangChain treats `{organization_id}` as template variables. Use prose (“pass organization_id as integer DEMO_ORG_ID”). |
+| `use_native_tool_calling: true` | More reliable structured tool calls than text ReAct parsing for NIM. |
+| `raise_on_parsing_failure: false` | Avoids hard crash when the model mixes `Final Answer` and `Action` (still log errors). |
+| `parse_agent_response_max_retries: 3` | Helps occasional parse slips. |
+| Output streams | Agent steps log to **stderr**; `make tour` / smoke capture **`2>&1`** for `scripts/extract_nat_answer.py`. |
+| Console answer extraction | Use the **last** prose `Workflow Result:` block; earlier `---` separators appear in tool logs and break naive regexes. See **`scripts/extract_nat_answer.py`** below. |
+| `max_iterations: 22` | Inventory ≈ 1× `search_pipes` + N× `get_cards` (N ≈ visible pipes); NAT `recursion_limit` = 46. Prompt hard cap: **7** tool calls, then Final Answer. **Supersedes** OPEN_DECISIONS D10 (`8`) for the shipped workflow. |
+
+### `scripts/extract_nat_answer.py` (native tool calling)
+
+**What we saw:** With `use_native_tool_calling`, the last `Workflow Result:` line is often JSON (`{"name": "pipefy__…", "parameters": {...}}`), not inventory prose. Feeding that to `eval/compare.py` fails Encore even when a good `Final Answer` exists later in the log.
+
+**What we did:** Skip tool-call-shaped `Workflow Result` blocks; use the last prose block. For `Final Answer:`, match non-greedily until `---` and take the **last non-empty** `Final Answer` (8b emits empty placeholders mid-run).
+
+### macOS `mktemp` in `demos/02_nat_smoke.sh`
+
+**What we saw:** `mktemp …/nat-smoke.XXXXXX.log` is invalid on BSD/macOS (XXXXXX must be the suffix of the basename). The template path was created literally as `nat-smoke.XXXXXX.log`, and every subsequent run failed instantly with `mkstemp: File exists`.
+
+**What we did:** Use `mktemp …/nat-smoke.XXXXXX` (no `.log` after the random suffix).
+
+### Smoke harness gates (inventory)
+
+`demos/02_nat_smoke.sh` now fails on: non-zero exit, workflow/agent errors in the log, missing `Final Answer:`, “no pipes” when the log shows `pipes[]` / `pipesCount`, and **`eval/compare.py`** against `eval/fixtures/live/inventory.json` (requires `./eval/ground_truth.sh inventory` first). Optional: `NIM_MODEL=meta/llama-3.1-70b-instruct` via `--override`.
+
+### Recommended operator flow (NAT)
+
+```bash
+make install-nat-demo   # ensures `uv run nat` exists (also: make tour depends on ensure-nat-demo)
+make install-cursor-demo # or rely on ensure-cursor-demo when running make tour / demo-cursor
+make doctor
+./eval/ground_truth.sh inventory
+make demo-nat           # may need 2–3 attempts with 8b on busy orgs
+```
+
+`scripts/tour.sh` retries demo-nat up to **3** times and runs compare on the extracted answer before Encore.
+
+**Tour deps:** `make tour` runs `ensure-nat-demo` and `ensure-cursor-demo` (auto-install on first run), same pattern as Act 3 / Act 2.
+
+**Flakiness observed (2025-06-02, post-fix):** back-to-back `make demo-nat` on the same org can be **1/3–3/3** in one session (incomplete single-pipe answers vs full 5-pipe inventory). Treat a single failure as normal for 8b; rely on tour retries or `NIM_MODEL=meta/llama-3.1-70b-instruct` when the key tier allows.
+
+**Eval scoring fix (2026-06):** `make eval` previously scored against `eval/fixtures/example/inventory.json` while agents answered about the live org. Runner now calls `eval/ground_truth.sh` once per scenario and scores `eval/fixtures/live/*.json` (same as smoke/tour). **Post-fix re-benchmark (2026-06-03):** NAT 8b **1/3** first-attempt, **2/3** with-retries on golden `inventory` ([BENCHMARKS.md](BENCHMARKS.md)).
+
+**Reliability pass (2025-06-03):**
+
+| Change | Why |
+|--------|-----|
+| `demos/02_nat_smoke.sh` injects `organization_id` from `eval/fixtures/live/inventory.json` (not a doubled `DEMO_ORG_ID`) plus compact `get_cards` pipe_id list | 8b omitted `organization_id` or used prose placeholders; a local `.env` had a duplicated org id (e.g. `<id><id>`) while the CLI baseline carried the correct single id. |
+| `scripts/extract_nat_answer.py` strips `Agent input`, skips tool-call JSON, scores richest `Final Answer` / `Workflow Result`, unescapes `\\n` | False passes when compare matched hint text; missed multi-pipe answers on one line. |
+| Smoke requires ≥3 `→` pipe entries in extracted text + `eval/compare.py` | Blocks tool-only `Workflow Result` and single-pipe early stops. |
+| `configs/pipefy_nat_workflow.yml` + `demos/prompts/inventory.txt` tightened steps | Fewer invented `pipe_id` strings and “no pipes” answers. |
+
+**Measured first-attempt (5× `make demo-nat SCENARIO=inventory`, same session):** before **1/5** (median ~19s); after **3/5** (median ~16–21s on passing runs). Still see recursion-limit loops and search-only exits (~4s fails). **Recommendation:** keep **8b** default for cost; use **`NIM_MODEL=meta/llama-3.1-70b-instruct`** when first-attempt green matters; keep `scripts/tour.sh` NAT retries for demos.
+
+---
+
+## Tour / Encore (`eval/compare.py`)
+
+### What “Encore” means
+
+After Acts 1–3, the tour runs **Encore**: `eval/compare.py` checks that each harness answer matches the CLI baseline (**pipe count** + **pipe names** as substrings, case-insensitive). See ARCHITECTURE §16.5.
+
+### Compare robustness
+
+| Behavior | Rationale |
+|----------|-----------|
+| Truncated baseline → count = listed pipes | Aligns with MCP/CLI page agents actually see. |
+| Multiple counts in answer (“5 pipes … 274 total”) | Prefer count matching listed pipes when both appear. |
+| No explicit count in answer | Infer from matched pipe names (`effective_pipe_count`). |
+| Typo in pipe label (`[Templates]` vs `[Template]`) | Token fallback: ≥2 significant tokens from baseline name must appear in answer. |
+
+---
+
+## Cursor Cloud harness
+
+### VM provisioning — do not blanket-ignore `.cursor/`
+
+**What we saw:** A Cursor Cloud agent clones the repo into a VM but does **not** have `pipefy-mcp-server` on PATH by default; the bridge fails without it.
+
+**What we did:** `.cursor/environment.json` runs `scripts/cloud_bootstrap.sh` (`uv tool install pipefy-mcp-server`) on VM start. **`.cursor/environment.json` MUST stay tracked** — a blanket `.cursor/` gitignore (or `git rm --cached .cursor/`) silently breaks cloud bring-up.
+
+### Secret model (`env_vars`) and the `CURSOR_` rule
+
+| Topic | Learning |
+|-------|----------|
+| Secrets to the VM | Pass Pipefy/NVIDIA creds via `CloudAgentOptions.env_vars` (encrypted at rest, deleted with the agent) + MCP stdio `env`; never committed. |
+| `CURSOR_*` forbidden | The SDK rejects `env_vars` names starting with `CURSOR_`; `demos/_cloud_config.build_env_vars` filters/validates them. |
+| Agent ids | Cloud agents get **`bc-`** ids (local get `agent-`); log it. |
+| Package imports | `demos/03_cursor_cloud_ops.py` needs `PYTHONPATH` so the `demos` package (`_cursor_harness`, `_cloud_config`) resolves — see `fix(cloud)` commit. |
+| DRY | Shared lifecycle lives in `demos/_cursor_harness.py`, reused by the local and cloud entrypoints. |
+
+---
+
+## Embeddings / semantic search
+
+### Model + `input_type`
+
+- Default NIM embedding model: **`nvidia/nv-embedqa-e5-v5`** (1024-dim), via `ModelConfig`/`MODEL_CONFIGS` in `embed.py` (no substring/dim guessing).
+- **`input_type` matters:** embed documents with `passage` and the search string with `query`. Mixing them degrades recall — covered by `tests/test_find_similar.py`.
+- When the NVIDIA tier has **no embedding access**, `EMBED_PROVIDER=local` (sentence-transformers) is the documented CPU fallback so the demo is never blocked.
+
+### Backend, parity, and cold start
+
+| Topic | Learning |
+|-------|----------|
+| CPU default / GPU opt-in | `EMBED_BACKEND=cpu` (faiss-cpu) is default; `gpu` imports the GPU lib **lazily** so the CPU path runs with no GPU present (D16). |
+| Pure rank vs FAISS | `rank.top_k` (pure cosine) stays offline-testable; `tests/test_rank_faiss_parity.py` proves it agrees with the FAISS index. |
+| Cold start | The first NIM embed call carries warm-up latency; `EMBED_CACHE_DIR` (`embeddings/passage_cache.py`) caches passage vectors to cut repeat cost. |
+
+---
+
+## Code quality (2026-06-04)
+
+Transferable patterns from the embeddings module review:
+
+- Prefer **`@dataclass(frozen=True, slots=True)`** for simple value objects (`CardText`) over pydantic; dropped pydantic from base dependencies.
+- Replace **substring heuristics** with explicit config maps (`MODEL_CONFIGS` for embedding dims) — grep-friendly, no fragile string matching.
+- Remove **magic constants** (`_CLI_CARDS_FIRST_MAX` → derived `cli_first = effective_limit`).
+- Tests: **mock external calls** (`fetch_card_texts`/`embed_texts`) to keep logic offline-testable; add a **parity test** when two implementations must agree.
+
+---
+
+## Repository hygiene
+
+- **Verify before claiming done.** After substantive changes, confirm with `git status`, `ruff check .`, and `pytest tests/`.
+- **`.cursor/environment.json` must stay tracked.** A blanket `.cursor/` gitignore breaks cloud bootstrap (`scripts/cloud_bootstrap.sh` never runs).
+- **Maintainer-only notes** belong under `.cursor/product/` or `.cursor/engineering/` (gitignored).
+- **Secret / PII hygiene.** Never commit org IDs or tokens; scrub git history before publishing a public fork.
+- **Pin discipline (as built):** `pipefy/ai-toolkit@v0.2.0-beta.2`, `cursor-sdk==0.1.6`, `nvidia-nat[langchain,mcp]==1.7.0`.
+
+---
+
+## Open follow-ups (not blocking docs)
+
+- [ ] Stabilize `make tour` green on first NAT attempt with 8b (retries already wired in `scripts/tour.sh`; `70b` documented as upgrade in README / TRY_IT_YOURSELF / §16.5).
+- [ ] Optional: Pipefy toolkit feature request — pagination or `open_cards_count` on `search_pipes` to avoid N× `get_cards` per pipe.
+
+---
+
+**Tour status (docs aligned 2025-06-02):** README, TRY_IT_YOURSELF Step 4, and ARCHITECTURE §16.5 describe `scripts/tour.sh` retries (Cursor ×1, NAT ×3 with compare gate) and Encore truncation rules.
+
+*Last updated: 2026-06-04 — added Cloud, embeddings, code-quality, and repository hygiene notes.*

@@ -1,0 +1,1 @@
+In pipe DEMO_PIPE_ID, find cards in the phase named DEMO_PHASE_NAME that have been in that phase for more than 7 days.

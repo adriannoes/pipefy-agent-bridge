@@ -1,0 +1,98 @@
+{
+  "_fixture": {
+    "kind": "nat_profiler_example",
+    "synthetic": true,
+    "description": "Committed sample for docs/BENCHMARKS.md. Live make profile-nat bundles are lean by default (summary + nat_profiler_artifacts.files paths); pass EMBED_ARTIFACTS=1 or bundle_nat_profile.py --embed-artifacts to inline NAT JSON. This fixture uses a normalized summary/iterations shape for reports, not a 1:1 NAT dump."
+  },
+  "run": {
+    "scenario": "inventory",
+    "harness": "nat",
+    "workflow_config": "configs/pipefy_nat_workflow.yml",
+    "model": "meta/llama-3.1-8b-instruct",
+    "organization_id": "900000001",
+    "captured_at": "2026-06-03T12:00:00Z"
+  },
+  "summary": {
+    "total_duration_s": 18.42,
+    "agent_iteration_count": 4,
+    "trace_step_count": 7,
+    "tool_call_count": 4,
+    "llm_invocation_count": 3
+  },
+  "workflow_runtime": {
+    "mean_s": 18.42,
+    "p50_s": 18.1,
+    "p90_s": 22.5,
+    "confidence_interval_90_s": [16.2, 20.8]
+  },
+  "iterations": [
+    {
+      "index": 0,
+      "kind": "llm",
+      "label": "plan_tool_calls",
+      "duration_ms": 2100
+    },
+    {
+      "index": 1,
+      "kind": "tool",
+      "name": "search_pipes",
+      "duration_ms": 890,
+      "arguments": {
+        "organization_id": 900000001,
+        "max_pipes_per_org": 500
+      }
+    },
+    {
+      "index": 2,
+      "kind": "llm",
+      "label": "plan_get_cards",
+      "duration_ms": 1850
+    },
+    {
+      "index": 3,
+      "kind": "tool",
+      "name": "get_cards",
+      "duration_ms": 620,
+      "arguments": {
+        "pipe_id": 900000101,
+        "first": 50
+      }
+    },
+    {
+      "index": 4,
+      "kind": "tool",
+      "name": "get_cards",
+      "duration_ms": 580,
+      "arguments": {
+        "pipe_id": 900000102,
+        "first": 50
+      }
+    },
+    {
+      "index": 5,
+      "kind": "tool",
+      "name": "get_cards",
+      "duration_ms": 595,
+      "arguments": {
+        "pipe_id": 900000103,
+        "first": 50
+      }
+    },
+    {
+      "index": 6,
+      "kind": "llm",
+      "label": "final_answer",
+      "duration_ms": 1420
+    }
+  ],
+  "nat_profiler_artifacts": {
+    "note": "Lean bundle: file paths only (no embedded traces). Raw NAT files live beside the bundle under eval/profiles/.runs/<timestamp>/",
+    "run_dir": "eval/profiles/.runs/20260603T120000Z",
+    "files": {
+      "workflow_profiling_metrics.json": "workflow_profiling_metrics.json",
+      "all_requests_profiler_traces.json": "all_requests_profiler_traces.json",
+      "inference_optimization.json": "inference_optimization.json",
+      "standardized_data_all.csv": "standardized_data_all.csv"
+    }
+  }
+}
