@@ -8,7 +8,7 @@ Optional module: fetch bounded card text via the `pipefy` CLI, embed (NIM or loc
 
 ### Prerequisites
 
-1. **Core tour env** — copy `.env.example` to `.env` (gitignored). You need at least `PIPEFY_API_TOKEN`, `DEMO_PIPE_ID`, and for the default path `NVIDIA_API_KEY`.
+1. **Core tour env** — copy `.env.example` to `.env` (gitignored). You need at least `PIPEFY_SERVICE_ACCOUNT_CLIENT_ID`, `PIPEFY_SERVICE_ACCOUNT_CLIENT_SECRET`, `DEMO_PIPE_ID`, and for the default path `NVIDIA_API_KEY`.
 2. **Dependencies** — install the optional embeddings extra (not required for lint-only CI):
 
 ```bash

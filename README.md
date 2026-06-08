@@ -26,7 +26,7 @@ A reference implementation that connects **Pipefy** operations to AI agents thro
 Copy-paste path for anyone cloning the repo — installs tooling, validates config, runs the full three-act demo plus automated fact check:
 
 ```bash
-git clone https://github.com/YOUR_ORG/pipefy-agent-bridge.git
+git clone https://github.com/adriannoes/pipefy-agent-bridge.git
 cd pipefy-agent-bridge
 cp .env.example .env   # fill Pipefy + CURSOR_API_KEY + NVIDIA_API_KEY (see .env.example)
 

@@ -2,7 +2,7 @@
 
 Public, reproducible numbers for golden eval scenarios across the **Cursor SDK** and **NVIDIA NAT** harnesses. Live runs are **operator-invoked** (needs `.env` with Pipefy + NVIDIA keys); CI stays lint-only.
 
-> **Status:** **Cursor live run (2026-06-04)** — all three golden scenarios scored against `eval/fixtures/live/*.json` after `eval/ground_truth.sh` (demo pipe **Analytics**, id `306996636`; stale phase **Review**). **NAT** rows unchanged from **2026-06-03** inventory-only run (no new NAT batches in this refresh). Pre-fix inventory table (example fixture) is archived in git history — do not use for D18/D19.
+> **Status:** **Cursor live run (2026-06-04)** — all three golden scenarios scored against `eval/fixtures/live/*.json` after `eval/ground_truth.sh` (sandbox `DEMO_PIPE_ID` + `DEMO_PHASE_NAME` from operator `.env`). **NAT** rows unchanged from **2026-06-03** inventory-only run (no new NAT batches in this refresh). Pre-fix inventory table (example fixture) is archived in git history — do not use for D18/D19.
 
 ## Scenario coverage matrix
 
@@ -19,8 +19,8 @@ Scoring uses `eval/fixtures/live/<scenario>.json` (gitignored). Committed `eval/
 | Field | Value |
 | --- | --- |
 | **Run date (UTC)** | `2026-06-04` _(Cursor: all scenarios; NAT: unchanged from `2026-06-03`)_ |
-| **Demo pipe (card scenarios)** | **Analytics** (`306996636`) — discovered via Pipefy MCP `search_pipes` |
-| **Demo phase (`stale_cards`)** | `Review` _(phase name as in Pipefy UI)_ |
+| **Demo pipe (card scenarios)** | `DEMO_PIPE_ID` from operator `.env` _(sandbox pipe; not committed)_ |
+| **Demo phase (`stale_cards`)** | `DEMO_PHASE_NAME` from operator `.env` _(phase name as in Pipefy UI)_ |
 | **`pipefy/ai-toolkit` tag** | `v0.2.0-beta.2` _(Makefile `PIPEFY_TOOLKIT_REF`; confirm with `pipefy --version`)_ |
 | **`cursor-sdk`** | `0.1.6` _(Makefile `CURSOR_SDK_VERSION`)_ |
 | **`nvidia-nat` (+ profiler extra)** | `1.7.0` _(Makefile `NVIDIA_NAT_VERSION`; profiler via `nvidia-nat-profiler`)_ |
@@ -70,7 +70,7 @@ make eval EVAL_ARGS="--scenario inventory --harness nat --runs 3 --retries 3 --j
 
 ### Reproduce commands (stale_cards)
 
-Requires `DEMO_PIPE_ID` and `DEMO_PHASE_NAME` in `.env` (phase name as shown in Pipefy UI). Demo pipe: Analytics (`306996636`), phase `Review`.
+Requires `DEMO_PIPE_ID` and `DEMO_PHASE_NAME` in `.env` (phase name as shown in Pipefy UI).
 
 **Cursor (measured 2026-06-04):**
 
@@ -90,7 +90,7 @@ Ground truth captures cards via read-only `pipefy graphql exec` (phase filter + 
 
 ### Reproduce commands (summary)
 
-Requires `DEMO_PIPE_ID` in `.env` (demo pipe: Analytics `306996636`).
+Requires `DEMO_PIPE_ID` in `.env`.
 
 **Cursor (measured 2026-06-04):**
 
